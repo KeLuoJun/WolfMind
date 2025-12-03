@@ -4,6 +4,8 @@
 
 🐺 基于 AgentScope 的多智能体狼人杀游戏系统
 
+![狼人杀 AI 游戏](./static/werewolf_ai_game.png)
+
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![AgentScope](https://img.shields.io/badge/AgentScope-0.1.0+-green.svg)](https://github.com/modelscope/agentscope)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
