@@ -19,6 +19,21 @@ class BaseDecision(BaseModel):
     )
 
 
+class ReflectionModel(BaseModel):
+    """存活玩家在每轮结束后的反思与印象更新。"""
+
+    thought: str = Field(
+        description="你的私密思考过程，不会被其他玩家看到。",
+    )
+    impression_updates: dict[str, str] = Field(
+        description=(
+            "你对其他存活玩家更新后的印象，键为玩家名，值为简短印象，例如"
+            " '不熟悉'、'可信'、'可疑'、'危险' 等。仅填写需要更新的玩家。"
+        ),
+        default_factory=dict,
+    )
+
+
 class DiscussionModel(BaseDecision):
     """The output format for discussion."""
 

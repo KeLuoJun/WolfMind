@@ -31,7 +31,7 @@ def majority_vote(votes: list[str]) -> tuple:
 
 def names_to_str(agents: list[str] | list[ReActAgent] | list) -> str:
     """Return a string of agent names.
-    
+
     Args:
         agents: 可以是字符串列表、智能体列表或角色对象列表
     """
@@ -59,7 +59,7 @@ def names_to_str(agents: list[str] | list[ReActAgent] | list) -> str:
             names.append(agent.name)
         else:
             names.append(str(agent))
-    
+
     return ", ".join([*names[:-1], "and " + names[-1]])
 
 
@@ -109,6 +109,7 @@ class Players:
         self.current_alive = []  # 当前存活角色对象列表
         self.all_players = []  # 所有智能体列表
         self.all_roles = []  # 所有角色对象列表 (新增)
+        self.impressions = {}  # 玩家对其他玩家的印象映射: {player: {other: impression}}
 
     def add_player(self, player: ReActAgent, role: str, role_obj=None) -> None:
         """Add a player to the game.
@@ -125,11 +126,18 @@ class Players:
         self.name_to_agent[player.name] = player
         self.role_to_names[role].append(player.name)
         self.all_players.append(player)
-        
+
+        # 初始化印象: 所有玩家彼此为“不熟悉”
+        for existing in self.impressions:
+            self.impressions[existing][player.name] = "不熟悉"
+        self.impressions[player.name] = {
+            name: "不熟悉" for name in self.name_to_agent.keys() if name != player.name
+        }
+
         if role_obj:
             self.name_to_role_obj[player.name] = role_obj
             self.all_roles.append(role_obj)
-        
+
         if role == "werewolf":
             self.werewolves.append(role_obj if role_obj else player)
         elif role == "villager":
@@ -155,7 +163,7 @@ class Players:
         for name in dead_players:
             if name and name in self.name_to_role_obj:
                 self.name_to_role_obj[name].kill()
-        
+
         # 更新存活列表
         self.werewolves = [
             _ for _ in self.werewolves if _.name not in dead_players
@@ -169,6 +177,35 @@ class Players:
         self.current_alive = [
             _ for _ in self.current_alive if _.name not in dead_players
         ]
+
+    def get_impressions(self, player_name: str, alive_only: bool = True) -> dict[str, str]:
+        """Get the impression map for a player.
+
+        Args:
+            player_name: 玩家名称
+            alive_only: 是否仅返回当前存活玩家
+        """
+        impression_map = self.impressions.get(player_name, {}).copy()
+        if alive_only:
+            alive_names = {
+                _.name for _ in self.current_alive if _.name != player_name}
+            impression_map = {
+                name: imp for name, imp in impression_map.items() if name in alive_names
+            }
+        return impression_map
+
+    def apply_impression_updates(self, player_name: str, updates: dict[str, str]) -> None:
+        """Apply impression updates for a player.
+
+        Args:
+            player_name: 更新人
+            updates: {other_player: impression}
+        """
+        if not updates:
+            return
+        if player_name not in self.impressions:
+            return
+        self.impressions[player_name].update(updates)
 
     def print_roles(self) -> None:
         """Print the roles of all players."""

@@ -20,6 +20,7 @@ from core.game_logger import GameLogger
 from models.schemas import (
     DiscussionModel,
     get_vote_model,
+    ReflectionModel,
 )
 from models.roles import (
     RoleFactory,
@@ -41,6 +42,84 @@ from agentscope.pipeline import (
 moderator = EchoAgent()
 
 
+def _format_impression_context(
+    player_name: str,
+    players: Players,
+    public_vote_history: list[dict[str, Any]],
+    round_public_records: list[dict[str, Any]],
+    round_num: int,
+    phase: str,
+) -> str:
+    """Compose private上下文给当前玩家使用。"""
+
+    impressions = players.get_impressions(player_name, alive_only=True)
+    impression_lines = [f"{name}: {imp}" for name, imp in impressions.items()]
+
+    record_lines = []
+    for rec in round_public_records:
+        speech = rec.get("speech", "")
+        behavior = rec.get("behavior", "")
+        seg = f"{rec['player']}:"
+        if behavior:
+            seg += f" [{behavior}]"
+        if speech:
+            seg += f" {speech}"
+        if seg:
+            record_lines.append(seg)
+
+    recent_votes = [
+        f"第{item['round']}轮{item['phase']}: {item['voter']} -> {item['target']}"
+        for item in public_vote_history[-8:]
+    ]
+
+    parts = [
+        f"当前轮次: 第{round_num}轮 ({phase})",
+        "你的对其他存活玩家的印象:",
+        "\n".join(impression_lines) if impression_lines else "(暂无)",
+        "本轮公开发言与动作:",
+        "\n".join(record_lines) if record_lines else "(当前尚无公开发言)",
+        "历史公开投票记录 (最多显示近8条):",
+        "\n".join(recent_votes) if recent_votes else "(暂无记录)",
+        "注意: 你的思考过程 thought 不会被其他玩家看到。",
+    ]
+    return "\n".join(parts)
+
+
+def _attach_context(prompt: Msg, context: str) -> Msg:
+    """Create a new moderator message with附加上下文。"""
+    return Msg(prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
+
+
+async def _reflection_phase(
+    players: Players,
+    round_public_records: list[dict[str, Any]],
+    public_vote_history: list[dict[str, Any]],
+    round_num: int,
+    moderator_agent: EchoAgent,
+) -> None:
+    """让每位存活玩家在回合结束后更新印象。"""
+
+    for role in players.current_alive:
+        context = _format_impression_context(
+            role.name,
+            players,
+            public_vote_history,
+            round_public_records,
+            round_num,
+            "回合反思",
+        )
+        prompt = await moderator_agent(
+            f"[{role.name} ONLY] 本轮结束，请反思并更新你对其他存活玩家的印象。"
+            "只填写需要更新的玩家，未提及的保持不变。思考过程 thought 仅自己可见。",
+        )
+        msg_reflect = await role.agent(
+            _attach_context(prompt, context),
+            structured_model=ReflectionModel,
+        )
+        updates = msg_reflect.metadata.get("impression_updates") or {}
+        players.apply_impression_updates(role.name, updates)
+
+
 async def werewolves_game(agents: list[ReActAgent]) -> None:
     """狼人杀游戏的主入口
 
@@ -53,6 +132,9 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
     # 初始化游戏日志
     game_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger = GameLogger(game_id)
+
+    # 跟踪公开投票和当轮公开发言，用于印象与决策上下文
+    public_vote_history: list[dict[str, Any]] = []
 
     # 初始化玩家状态
     players = Players()
@@ -106,6 +188,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
 
     # 游戏开始！
     for round_num in range(1, MAX_GAME_ROUND + 1):
+        round_public_records: list[dict[str, Any]] = []
         # 开始新回合
         logger.start_round(round_num)
         # 为所有玩家创建 MsgHub 以广播消息
@@ -139,8 +222,16 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 n_werewolves = len(players.werewolves)
                 for _ in range(1, MAX_DISCUSSION_ROUND * n_werewolves + 1):
                     werewolf = players.werewolves[_ % n_werewolves]
+                    context = _format_impression_context(
+                        werewolf.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "夜晚讨论",
+                    )
                     res = await werewolf.discuss_with_team(
-                        await moderator(""),
+                        _attach_context(await moderator(""), context),
                     )
                     # 记录狼人讨论
                     speech = res.metadata.get("speech", "")
@@ -161,7 +252,18 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 vote_prompt = await moderator(content=Prompts.to_wolves_vote)
                 msgs_vote = []
                 for werewolf in players.werewolves:
-                    msg = await werewolf.team_vote(vote_prompt, players.current_alive)
+                    context = _format_impression_context(
+                        werewolf.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "夜晚投票",
+                    )
+                    msg = await werewolf.team_vote(
+                        _attach_context(vote_prompt, context),
+                        players.current_alive,
+                    )
                     msgs_vote.append(msg)
                     # 记录狼人投票
                     target = msg.metadata.get("vote")
@@ -193,6 +295,14 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "killed_player": killed_player,
                     "alive_players": players.current_alive,
                     "moderator": moderator,
+                    "context": _format_impression_context(
+                        witch.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "女巫行动",
+                    ),
                 }
 
                 result = await witch.night_action(game_state)
@@ -230,6 +340,14 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "alive_players": players.current_alive,
                     "moderator": moderator,
                     "name_to_role": players.name_to_role,
+                    "context": _format_impression_context(
+                        seer.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "预言家行动",
+                    ),
                 }
 
                 result = await seer.night_action(game_state)
@@ -256,7 +374,19 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     killed_player == hunter.name
                     and poisoned_player != hunter.name
                 ):
-                    shot_player = await hunter.shoot(players.current_alive, moderator)
+                    context = _format_impression_context(
+                        hunter.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "猎人开枪",
+                    )
+                    shot_player = await hunter.shoot(
+                        players.current_alive,
+                        moderator,
+                        context,
+                    )
                     if shot_player:
                         logger.log_action(
                             "猎人开枪", f"猎人 {hunter.name} 开枪击杀了 {shot_player}")
@@ -295,6 +425,14 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     if speech or behavior:
                         log_content = f"[{behavior}] {speech}" if behavior else speech
                         logger.log_last_words(killed_player, log_content)
+                        round_public_records.append(
+                            {
+                                "player": killed_player,
+                                "speech": speech,
+                                "behavior": behavior,
+                                "phase": "遗言",
+                            },
+                        )
                     elif last_msg.content:
                         logger.log_last_words(killed_player, last_msg.content)
 
@@ -331,7 +469,17 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             # 使用 sequential_pipeline 进行讨论，并记录每个玩家的发言
             discussion_msgs = []
             for role in players.current_alive:
-                msg = await role.day_discussion(await moderator(""))
+                context = _format_impression_context(
+                    role.name,
+                    players,
+                    public_vote_history,
+                    round_public_records,
+                    round_num,
+                    "白天讨论",
+                )
+                msg = await role.day_discussion(
+                    _attach_context(await moderator(""), context),
+                )
                 discussion_msgs.append(msg)
 
                 speech = msg.metadata.get("speech", "")
@@ -339,6 +487,14 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 if speech or behavior:
                     log_content = f"[{behavior}] {speech}" if behavior else speech
                     logger.log_message("白天讨论", log_content, role.name)
+                    round_public_records.append(
+                        {
+                            "player": role.name,
+                            "speech": speech,
+                            "behavior": behavior,
+                            "phase": "白天讨论",
+                        },
+                    )
                 elif msg.content:
                     logger.log_message("白天讨论", msg.content, role.name)
 
@@ -353,12 +509,31 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             )
             msgs_vote = []
             for role in players.current_alive:
-                msg = await role.vote(vote_prompt, players.current_alive)
+                context = _format_impression_context(
+                    role.name,
+                    players,
+                    public_vote_history,
+                    round_public_records,
+                    round_num,
+                    "白天投票",
+                )
+                msg = await role.vote(
+                    _attach_context(vote_prompt, context),
+                    players.current_alive,
+                )
                 msgs_vote.append(msg)
                 # 记录投票
                 target = msg.metadata.get("vote")
                 if target:
                     logger.log_vote(role.name, target, "投票")
+                    public_vote_history.append(
+                        {
+                            "round": round_num,
+                            "phase": "白天",
+                            "voter": role.name,
+                            "target": target,
+                        },
+                    )
 
             voted_player, votes = majority_vote(
                 [_.metadata.get("vote") for _ in msgs_vote],
@@ -388,6 +563,14 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 if speech or behavior:
                     log_content = f"[{behavior}] {speech}" if behavior else speech
                     logger.log_last_words(voted_player, log_content)
+                    round_public_records.append(
+                        {
+                            "player": voted_player,
+                            "speech": speech,
+                            "behavior": behavior,
+                            "phase": "遗言",
+                        },
+                    )
                 elif last_msg.content:
                     logger.log_last_words(voted_player, last_msg.content)
 
@@ -399,7 +582,19 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             shot_player = None
             for hunter in players.hunter:
                 if voted_player == hunter.name:
-                    shot_player = await hunter.shoot(players.current_alive, moderator)
+                    context = _format_impression_context(
+                        hunter.name,
+                        players,
+                        public_vote_history,
+                        round_public_records,
+                        round_num,
+                        "猎人开枪",
+                    )
+                    shot_player = await hunter.shoot(
+                        players.current_alive,
+                        moderator,
+                        context,
+                    )
                     if shot_player:
                         logger.log_action(
                             "猎人开枪", f"猎人 {hunter.name} 开枪击杀了 {shot_player}")
@@ -416,6 +611,15 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             # 记录白天死亡
             logger.log_death("白天死亡", [p for p in dead_today if p])
             players.update_players(dead_today)
+
+            # 回合结束，存活玩家更新印象
+            await _reflection_phase(
+                players,
+                round_public_records,
+                public_vote_history,
+                round_num,
+                moderator,
+            )
 
             # 检查胜利条件
             res = players.check_winning()

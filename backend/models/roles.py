@@ -36,15 +36,26 @@ class BaseRole(ABC):
         """夜晚行动 - 每个角色需要实现自己的夜晚行为"""
         pass
 
-    async def day_discussion(self, prompt: Msg) -> Msg:
+    async def day_discussion(self, prompt: Msg, context: str | None = None) -> Msg:
         """白天讨论 - 所有角色共用"""
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
         return await self.agent(
             prompt,
             structured_model=BaseDecision,
         )
 
-    async def vote(self, prompt: Msg, alive_players: list) -> Msg:
+    async def vote(
+        self,
+        prompt: Msg,
+        alive_players: list,
+        context: str | None = None,
+    ) -> Msg:
         """投票 - 所有角色共用"""
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
         return await self.agent(
             prompt,
             structured_model=get_vote_model(alive_players),
@@ -87,15 +98,26 @@ class Werewolf(BaseRole):
         """狼人夜晚行动 - 返回空字典，因为狼人的行动在团队讨论中完成"""
         return {}
 
-    async def discuss_with_team(self, prompt: Msg) -> Msg:
+    async def discuss_with_team(self, prompt: Msg, context: str | None = None) -> Msg:
         """狼人团队讨论"""
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
         return await self.agent(
             prompt,
             structured_model=DiscussionModel,
         )
 
-    async def team_vote(self, prompt: Msg, alive_players: list) -> Msg:
+    async def team_vote(
+        self,
+        prompt: Msg,
+        alive_players: list,
+        context: str | None = None,
+    ) -> Msg:
         """狼人团队投票选择击杀目标"""
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
         return await self.agent(
             prompt,
             structured_model=get_vote_model(alive_players),
@@ -125,12 +147,17 @@ class Seer(BaseRole):
         """预言家夜晚查验"""
         alive_players = game_state.get("alive_players", [])
         moderator = game_state.get("moderator")
+        context = game_state.get("context")
 
         # 询问预言家要查验谁
         prompt = await moderator(
             f"[{self.name} ONLY] {self.name}，你是预言家。"
             f"请选择一名玩家查验身份。当前存活玩家：{', '.join([p.name for p in alive_players])}"
         )
+
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
         msg_seer = await self.agent(
             prompt,
@@ -179,6 +206,7 @@ class Witch(BaseRole):
         killed_player = game_state.get("killed_player")
         alive_players = game_state.get("alive_players", [])
         moderator = game_state.get("moderator")
+        context = game_state.get("context")
 
         result = {}
 
@@ -188,6 +216,10 @@ class Witch(BaseRole):
                 f"[{self.name} ONLY] {self.name}，你是女巫。"
                 f"今晚 {killed_player} 被狼人杀死了。你要使用解药救他/她吗？"
             )
+
+            if context:
+                prompt = Msg(
+                    prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
             msg_resurrect = await self.agent(
                 prompt,
@@ -208,6 +240,10 @@ class Witch(BaseRole):
                 f"[{self.name} ONLY] {self.name}，你要使用毒药吗？"
                 f"当前存活玩家：{', '.join([p.name for p in alive_players])}"
             )
+
+            if context:
+                prompt = Msg(
+                    prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
             msg_poison = await self.agent(
                 prompt,
@@ -237,7 +273,7 @@ class Hunter(BaseRole):
         """猎人夜晚行动（被杀时可能触发）"""
         return {}
 
-    async def shoot(self, alive_players: list, moderator) -> Optional[str]:
+    async def shoot(self, alive_players: list, moderator, context: str | None = None) -> Optional[str]:
         """猎人开枪带走一人"""
         if not self.has_shot:
             return None
@@ -246,6 +282,10 @@ class Hunter(BaseRole):
             f"[{self.name} ONLY] {self.name}，你是猎人，即将死亡。"
             f"你要开枪带走一人吗？当前存活玩家：{', '.join([p.name for p in alive_players])}"
         )
+
+        if context:
+            prompt = Msg(
+                prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
         msg_hunter = await self.agent(
             prompt,
