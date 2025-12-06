@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """狼人杀游戏使用的结构化输出模型。"""
-from typing import Literal, Tuple
+from typing import Literal
 
 from pydantic import BaseModel, Field
 from agentscope.agent import AgentBase
@@ -8,6 +8,7 @@ from agentscope.agent import AgentBase
 
 class BaseDecision(BaseModel):
     """所有决策的基类，包含思考过程和行为描述。"""
+
     thought: str = Field(
         description="你决策背后的思考过程。分析局势、其他玩家的行为以及你的策略。注：这是你的私密思考过程，不会被其他玩家看到。",
     )
@@ -27,9 +28,9 @@ class ReflectionModel(BaseModel):
     )
     impression_updates: dict[str, str] = Field(
         description=(
-            """为了提高你在心理博弈中的优势，你需要对其他玩家有充分的了解。
-            请根据你此前的了解和刚刚一局比赛中的表现，更新对它的全面印象。请尽你所能洞察它的动机、性格、策略、弱点等等。你只需输出一小段完整清晰的分析结果和印象，无需其他额外的解释说明。键为玩家名，值为印象。注：仅填写需要更新的玩家。
-            """
+            "为了提高你在心理博弈中的优势，你需要对其他玩家有充分的了解。\n"
+            "请根据你此前的了解和刚刚一局比赛中的表现，更新对它的全面印象。请尽你所能洞察它的动机、性格、策略、弱点等等。"
+            "你只需输出一小段完整清晰的分析结果和印象，无需其他额外的解释说明。键为玩家名，值为印象。注：仅填写需要更新的玩家。"
         ),
         default_factory=dict,
     )
@@ -47,7 +48,7 @@ def get_vote_model(agents: list[AgentBase]) -> type[BaseModel]:
     """根据玩家名字生成投票模型。"""
 
     class VoteModel(BaseDecision):
-        """The vote output format."""
+        """投票阶段的输出模型。"""
 
         vote: Literal[tuple(_.name for _ in agents)] = Field(  # type: ignore
             description="你想投票的玩家名字",
@@ -56,8 +57,8 @@ def get_vote_model(agents: list[AgentBase]) -> type[BaseModel]:
     return VoteModel
 
 
-    class WitchResurrectModel(BaseDecision):
-        """女巫使用解药时的输出模型。"""
+class WitchResurrectModel(BaseDecision):
+    """女巫使用解药时的输出模型。"""
 
     resurrect: bool = Field(
         description="是否想要复活该玩家",
@@ -73,9 +74,7 @@ def get_poison_model(agents: list[AgentBase]) -> type[BaseModel]:
         poison: bool = Field(
             description="是否想要使用毒药",
         )
-        name: Literal[  # type: ignore
-            tuple(_.name for _ in agents)
-        ] | None = Field(
+        name: Literal[tuple(_.name for _ in agents)] | None = Field(  # type: ignore
             description="你想毒杀的玩家名字，如果你不想毒杀任何人，请留空",
             default=None,
         )
@@ -105,9 +104,7 @@ def get_hunter_model(agents: list[AgentBase]) -> type[BaseModel]:
         shoot: bool = Field(
             description="是否想要使用开枪能力",
         )
-        name: Literal[  # type: ignore
-            tuple(_.name for _ in agents)
-        ] | None = Field(
+        name: Literal[tuple(_.name for _ in agents)] | None = Field(  # type: ignore
             description="你想射杀的玩家名字，如果你不想使用能力，请留空",
             default=None,
         )
