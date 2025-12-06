@@ -229,6 +229,7 @@ class Witch(BaseRole):
             result["resurrect_speech"] = msg_resurrect.metadata.get("speech")
             result["resurrect_behavior"] = msg_resurrect.metadata.get(
                 "behavior")
+            result["resurrect_thought"] = msg_resurrect.metadata.get("thought")
 
             if msg_resurrect.metadata.get("resurrect"):
                 self.has_healing = False
@@ -252,6 +253,7 @@ class Witch(BaseRole):
 
             result["poison_speech"] = msg_poison.metadata.get("speech")
             result["poison_behavior"] = msg_poison.metadata.get("behavior")
+            result["poison_thought"] = msg_poison.metadata.get("thought")
 
             if msg_poison.metadata.get("poison"):
                 poisoned_name = msg_poison.metadata.get("name")
@@ -273,8 +275,8 @@ class Hunter(BaseRole):
         """猎人夜晚行动（被杀时可能触发）"""
         return {}
 
-    async def shoot(self, alive_players: list, moderator, context: str | None = None) -> Optional[str]:
-        """猎人开枪带走一人"""
+    async def shoot(self, alive_players: list, moderator, context: str | None = None) -> Optional[dict]:
+        """猎人开枪带走一人，返回包含目标与思考的字典。"""
         if not self.has_shot:
             return None
 
@@ -294,7 +296,12 @@ class Hunter(BaseRole):
 
         if msg_hunter.metadata.get("shoot"):
             self.has_shot = False
-            return msg_hunter.metadata.get("name")
+            return {
+                "target": msg_hunter.metadata.get("name"),
+                "speech": msg_hunter.metadata.get("speech"),
+                "behavior": msg_hunter.metadata.get("behavior"),
+                "thought": msg_hunter.metadata.get("thought"),
+            }
 
         return None
 
