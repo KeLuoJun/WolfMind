@@ -113,15 +113,46 @@ class GameLogger:
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"{header}\n")
 
-            # 写入详细内容（带缩进）
-            if thought:
-                f.write(f"    (心声) {thought}\n")
-            if behavior:
-                f.write(f"    (表现) {behavior}\n")
-            if speech:
-                f.write(f"    (发言) {speech}\n")
+            # 写入详细内容（带缩进，支持多行换行对齐）
+            self._write_field(f, "心声", thought)
+            self._write_field(f, "表现", behavior)
+            self._write_field(f, "发言", speech)
 
             f.write("\n")  # 增加空行以分隔条目
+
+    def _write_field(self, file_obj, label: str, content: Optional[str]):
+        """按字段写入文本，自动对齐多行内容。"""
+        if not content:
+            return
+
+        prefix = f"    ({label}) "
+        lines = self._normalize_multiline(content)
+
+        file_obj.write(f"{prefix}{lines[0]}\n")
+        continuation_prefix = " " * len(prefix)
+        for line in lines[1:]:
+            # 保持后续行与内容起始位置对齐
+            file_obj.write(f"{continuation_prefix}{line}\n")
+
+    def _normalize_multiline(self, content: str) -> list[str]:
+        """去除多行文本的公共缩进，避免日志中出现无意的回退或额外空格。"""
+        lines = content.splitlines() or [content]
+        if len(lines) <= 1:
+            return [content]
+
+        # 计算除首行外的最小公共前导空格数
+        indent_sizes = [len(line) - len(line.lstrip(" "))
+                        for line in lines[1:] if line.strip()]
+        common_indent = min(indent_sizes) if indent_sizes else 0
+
+        normalized = [lines[0].rstrip()]
+        for line in lines[1:]:
+            trimmed = line.rstrip()
+            if common_indent and len(trimmed) >= common_indent:
+                trimmed = trimmed[common_indent:]
+            normalized.append(trimmed)
+
+        return normalized
 
     def log_vote(
         self,
