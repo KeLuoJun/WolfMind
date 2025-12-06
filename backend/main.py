@@ -9,7 +9,7 @@ from config import config
 from agentscope.agent import ReActAgent
 from agentscope.formatter import DashScopeMultiAgentFormatter, OpenAIMultiAgentFormatter, OllamaMultiAgentFormatter
 from agentscope.model import DashScopeChatModel, OpenAIChatModel, OllamaChatModel
-from agentscope.session import JSONSession
+from core.formatted_session import FormattedJSONSession
 
 prompt = """
 你是一个名为{name}的狼人杀游戏玩家。
@@ -193,7 +193,7 @@ async def main() -> None:
 
     # 从已有检查点加载状态
     print(f"正在加载检查点: {config.checkpoint_dir}/{config.checkpoint_id}.json")
-    session = JSONSession(save_dir=config.checkpoint_dir)
+    session = FormattedJSONSession(save_dir=config.checkpoint_dir)
     # await session.load_session_state(
     #     session_id=config.checkpoint_id,
     #     **{player.name: player for player in players},
