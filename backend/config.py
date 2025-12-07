@@ -77,7 +77,7 @@ class Config:
         return self._get("MODEL_PROVIDER", "dashscope").lower()
 
     # ==================== 游戏配置 ====================
-    
+
     @property
     def max_game_round(self) -> int:
         """最大游戏轮数"""
@@ -137,8 +137,8 @@ class Config:
         else:
             return False, f"未知的模型提供商: {self.model_provider}"
 
-        if self.game_language not in ["zh", "en"]:
-            return False, f"不支持的语言: {self.game_language}"
+        # if self.game_language not in ["zh", "en"]:
+        #     return False, f"不支持的语言: {self.game_language}"
 
         return True, ""
 
@@ -164,7 +164,7 @@ class Config:
         elif self.model_provider == "ollama":
             print(f"Ollama Model: {self.ollama_model_name}")
 
-        print(f"游戏语言: {self.game_language}")
+        # print(f"游戏语言: {self.game_language}")
         print(f"最大游戏轮数: {self.max_game_round}")
         print(f"最大讨论轮数: {self.max_discussion_round}")
         print(f"启用 Studio: {self.enable_studio}")

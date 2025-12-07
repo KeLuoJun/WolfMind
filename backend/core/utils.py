@@ -14,7 +14,7 @@ MAX_GAME_ROUND = config.max_game_round  # 最大回合数
 MAX_DISCUSSION_ROUND = config.max_discussion_round  # 白天讨论阶段的最大讨论轮数
 
 # 根据配置选择提示词语言
-Prompts = ChinesePrompts if config.game_language == "zh" else EnglishPrompts
+Prompts = ChinesePrompts
 
 ABSTAIN_KEYWORDS = {
     "abstain",
