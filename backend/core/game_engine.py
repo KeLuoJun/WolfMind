@@ -119,11 +119,17 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
         val = str(val).strip()
 
         # 移除 DSML 工具调用块（模型异常输出）
-        # 匹配 <｜DSML｜...> 或 </｜DSML｜...> 标签及其内容
-        val = re.sub(r'<｜DSML｜[^>]*>.*?</｜DSML｜[^>]*>', '', val, flags=re.DOTALL)
-        val = re.sub(r'<｜DSML｜[^>]*>', '', val)
-        val = re.sub(r'</｜DSML｜[^>]*>', '', val)
-        val = val.strip()
+        # 使用更宽松的正则匹配任意包含 DSML 的标签
+        if "<｜DSML｜" in val or "</｜DSML｜" in val or "DSML" in val:
+            # 先移除完整的标签块
+            val = re.sub(r'<[^>]*DSML[^>]*>.*?</[^>]*DSML[^>]*>', '', val, flags=re.DOTALL)
+            # 移除残留的开始/结束标签
+            val = re.sub(r'<[^>]*DSML[^>]*>', '', val)
+            val = re.sub(r'</[^>]*DSML[^>]*>', '', val)
+            val = val.strip()
+            # 如果清理后为空，直接返回空
+            if not val:
+                return ""
 
         # 去除 generate_response("...") 包裹，即使前后有前缀/空格
         match = re.search(
@@ -141,6 +147,11 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
     behavior_s = _clean_text(behavior)
     thought_s = _clean_text(thought)
     content_s = _clean_text(getattr(msg, "content", ""))
+
+    # 如果 content_s 仍包含 DSML 相关内容，置空避免泄露
+    if content_s and ("DSML" in content_s or "function_calls" in content_s):
+        content_s = ""
+
     return speech_s, behavior_s, thought_s, content_s
 
 
