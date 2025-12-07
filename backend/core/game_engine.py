@@ -117,6 +117,14 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
         elif isinstance(val, dict) and "text" in val:
             val = val.get("text", "")
         val = str(val).strip()
+
+        # 移除 DSML 工具调用块（模型异常输出）
+        # 匹配 <｜DSML｜...> 或 </｜DSML｜...> 标签及其内容
+        val = re.sub(r'<｜DSML｜[^>]*>.*?</｜DSML｜[^>]*>', '', val, flags=re.DOTALL)
+        val = re.sub(r'<｜DSML｜[^>]*>', '', val)
+        val = re.sub(r'</｜DSML｜[^>]*>', '', val)
+        val = val.strip()
+
         # 去除 generate_response("...") 包裹，即使前后有前缀/空格
         match = re.search(
             r"generate_response\(\s*[\"']?(.*?)[\"']?\s*\)\s*$", val)
