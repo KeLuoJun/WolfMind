@@ -47,6 +47,7 @@ moderator = EchoAgent()
 def _format_impression_context(
     player_name: str,
     players: Players,
+    public_vote_history: list[dict[str, Any]],
     round_public_records: list[dict[str, Any]],
     round_num: int,
     phase: str,
@@ -74,8 +75,17 @@ def _format_impression_context(
         "\n".join(impression_lines) if impression_lines else "(暂无)",
         "本轮公开发言与动作:",
         "\n".join(record_lines) if record_lines else "(当前尚无公开发言)",
-        "注意: 你的思考过程 thought 不会被其他玩家看到。",
     ]
+
+    # 显示历史公开投票记录（已过滤掉当前轮次的即时投票，只显示已完成的）
+    recent_votes = [
+        f"第{item['round']}轮{item['phase']}: {item['voter']} -> {item['target']}"
+        for item in public_vote_history[-8:]
+    ]
+    parts.append("历史公开投票记录 (最多显示近8条):")
+    parts.append("\n".join(recent_votes) if recent_votes else "(暂无记录)")
+
+    parts.append("注意: 你的思考过程 thought 不会被其他玩家看到。")
     return "\n".join(parts)
 
 
@@ -128,6 +138,7 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
 
 async def _reflection_phase(
     players: Players,
+    public_vote_history: list[dict[str, Any]],
     round_public_records: list[dict[str, Any]],
     round_num: int,
     moderator_agent: EchoAgent,
@@ -139,6 +150,7 @@ async def _reflection_phase(
         context = _format_impression_context(
             role.name,
             players,
+            public_vote_history,
             round_public_records,
             round_num,
             "回合反思",
@@ -175,6 +187,9 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
     # 初始化游戏日志
     game_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger = GameLogger(game_id)
+
+    # 跟踪公开投票，用于印象与决策上下文（投票阶段不显示）
+    public_vote_history: list[dict[str, Any]] = []
 
     # 初始化玩家状态
     players = Players()
@@ -265,6 +280,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         werewolf.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "夜晚讨论",
@@ -296,6 +312,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         werewolf.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "夜晚投票",
@@ -361,6 +378,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "context": _format_impression_context(
                         witch.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "女巫行动",
@@ -415,6 +433,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "context": _format_impression_context(
                         seer.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "预言家行动",
@@ -450,6 +469,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         hunter.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -519,7 +539,15 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                         },
                     )
 
-                    await alive_players_hub.broadcast(last_msg)
+                    # 手动广播过滤后的遗言内容（不含 thought 和私密 metadata）
+                    public_last_words = f"[{killed_player} 遗言]"
+                    if behavior:
+                        public_last_words += f" [{behavior}]"
+                    if speech or content_raw:
+                        public_last_words += f" {speech or content_raw}"
+                    await alive_players_hub.broadcast(
+                        await moderator(public_last_words),
+                    )
 
             else:
                 logger.log_announcement("天亮了，请所有玩家睁眼。昨晚平安夜，无人被淘汰。")
@@ -543,8 +571,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     ),
                 ),
             )
-            # 开启自动广播以进行讨论
-            alive_players_hub.set_auto_broadcast(True)
+            # 保持自动广播关闭，手动广播过滤后的公开内容
             # 更新存活智能体列表
             current_alive_agents = [
                 role.agent for role in players.current_alive]
@@ -555,6 +582,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 context = _format_impression_context(
                     role.name,
                     players,
+                    public_vote_history,
                     round_public_records,
                     round_num,
                     "白天讨论",
@@ -580,6 +608,15 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                         "phase": "白天讨论",
                     },
                 )
+                # 手动广播过滤后的公开内容（不含 thought 和私密 metadata）
+                public_content = f"[{role.name}]"
+                if behavior:
+                    public_content += f" [{behavior}]"
+                if speech or content_raw:
+                    public_content += f" {speech or content_raw}"
+                await alive_players_hub.broadcast(
+                    await moderator(public_content),
+                )
 
             # 禁用自动广播以避免泄露信息
             alive_players_hub.set_auto_broadcast(False)
@@ -595,6 +632,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 context = _format_impression_context(
                     role.name,
                     players,
+                    public_vote_history,
                     round_public_records,
                     round_num,
                     "白天投票",
@@ -628,6 +666,19 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                         behavior=behavior,
                         thought=thought,
                         action="弃票"
+                    )
+
+            # 延迟提交投票记录，确保当前轮次投票时玩家看不到其他人的选择（盲投）
+            for idx, role in enumerate(players.current_alive):
+                vote_val = day_votes_for_majority[idx]
+                if vote_val:
+                    public_vote_history.append(
+                        {
+                            "round": round_num,
+                            "phase": "白天",
+                            "voter": role.name,
+                            "target": vote_val,
+                        },
                     )
 
             voted_player, votes = majority_vote(day_votes_for_majority)
@@ -673,7 +724,13 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     },
                 )
 
-                voting_msgs.extend([prompt_msg, last_msg])
+                # 构造过滤后的遗言内容（不含 thought 和私密 metadata）
+                public_last_words = f"[{voted_player} 遗言]"
+                if behavior:
+                    public_last_words += f" [{behavior}]"
+                if speech or content_raw:
+                    public_last_words += f" {speech or content_raw}"
+                voting_msgs.extend([prompt_msg, await moderator(public_last_words)])
 
             await alive_players_hub.broadcast(voting_msgs)
 
@@ -684,6 +741,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         hunter.name,
                         players,
+                        public_vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -722,6 +780,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             # 回合结束，存活玩家更新印象
             await _reflection_phase(
                 players,
+                public_vote_history,
                 round_public_records,
                 round_num,
                 moderator,
