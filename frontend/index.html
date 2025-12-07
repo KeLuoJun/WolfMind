@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>狼人杀游戏日志查看器</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐺 狼人杀游戏日志查看器</h1>
+            <div class="controls">
+                <select id="logSelector" class="log-selector">
+                    <option value="">加载中...</option>
+                </select>
+                <button id="refreshBtn" class="btn-refresh">🔄 刷新</button>
+                <label class="auto-refresh">
+                    <input type="checkbox" id="autoRefresh">
+                    自动刷新 (5秒)
+                </label>
+            </div>
+        </header>
+
+        <div class="game-info" id="gameInfo">
+            <div class="info-item">
+                <span class="label">游戏ID:</span>
+                <span id="gameId">-</span>
+            </div>
+            <div class="info-item">
+                <span class="label">开始时间:</span>
+                <span id="startTime">-</span>
+            </div>
+            <div class="info-item">
+                <span class="label">结束时间:</span>
+                <span id="endTime">-</span>
+            </div>
+            <div class="info-item">
+                <span class="label">游戏状态:</span>
+                <span id="gameStatus">-</span>
+            </div>
+        </div>
+
+        <div class="players-section" id="playersSection">
+            <h2>玩家列表</h2>
+            <div class="players-grid" id="playersGrid"></div>
+        </div>
+
+        <div class="rounds-section" id="roundsSection">
+            <h2>游戏回合</h2>
+            <div class="rounds-container" id="roundsContainer"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
