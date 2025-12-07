@@ -129,33 +129,12 @@ class GameLogger:
             return
 
         prefix = f"    ({label}) "
-        lines = self._normalize_multiline(content)
-
-        file_obj.write(f"{prefix}{lines[0]}\n")
-        continuation_prefix = " " * len(prefix)
-        for line in lines[1:]:
-            # 保持后续行与内容起始位置对齐
-            file_obj.write(f"{continuation_prefix}{line}\n")
-
-    def _normalize_multiline(self, content: str) -> list[str]:
-        """去除多行文本的公共缩进，避免日志中出现无意的回退或额外空格。"""
         lines = content.splitlines() or [content]
-        if len(lines) <= 1:
-            return [content]
 
-        # 计算除首行外的最小公共前导空格数
-        indent_sizes = [len(line) - len(line.lstrip(" "))
-                        for line in lines[1:] if line.strip()]
-        common_indent = min(indent_sizes) if indent_sizes else 0
-
-        normalized = [lines[0].rstrip()]
-        for line in lines[1:]:
-            trimmed = line.rstrip()
-            if common_indent and len(trimmed) >= common_indent:
-                trimmed = trimmed[common_indent:]
-            normalized.append(trimmed)
-
-        return normalized
+        continuation_prefix = " " * len(prefix)
+        for idx, line in enumerate(lines):
+            current_prefix = prefix if idx == 0 else continuation_prefix
+            file_obj.write(f"{current_prefix}{line.rstrip()}\n")
 
     def log_vote(
         self,
@@ -229,14 +208,16 @@ class GameLogger:
     ):
         """记录玩家回合结束后的反思（含私密思考和印象）。"""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        impression_str = ", ".join([
-            f"{name}:{imp}" for name, imp in impressions.items()
-        ]) if impressions else "(无更新)"
+        impression_lines = [f"{name}:{imp}" for name,
+                            imp in impressions.items()]
+        impression_text = "\n".join(
+            impression_lines) if impression_lines else "(无更新)"
 
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"[{timestamp}] [第{round_num}回合-反思] {player_name}\n")
-            f.write(f"    (思考) {thought}\n")
-            f.write(f"    (印象) {impression_str}\n\n")
+            self._write_field(f, "思考", thought)
+            self._write_field(f, "印象", impression_text)
+            f.write("\n")
 
     def close(self):
         """关闭日志文件"""
