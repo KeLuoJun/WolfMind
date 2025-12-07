@@ -262,12 +262,24 @@ class Players:
             f'and {names_to_str(self.role_to_names["witch"])} is the witch.'
         )
 
+        # 屠边规则：狼人存活且神职或平民一侧被清空即可胜利；好人胜利条件仍为清空所有狼人
+        villagers_remaining = len(self.villagers)
+        gods_remaining = len(self.seer) + len(self.hunter) + len(self.witch)
+
+        if self.werewolves and (gods_remaining == 0 or villagers_remaining == 0):
+            return Prompts.to_all_wolf_win.format(
+                n_alive=len(self.current_alive),
+                n_werewolves=len(self.werewolves),
+                true_roles=true_roles,
+            )
+
         if len(self.werewolves) * 2 >= len(self.current_alive):
             return Prompts.to_all_wolf_win.format(
                 n_alive=len(self.current_alive),
                 n_werewolves=len(self.werewolves),
                 true_roles=true_roles,
             )
+
         if self.current_alive and not self.werewolves:
             return Prompts.to_all_village_win.format(
                 true_roles=true_roles,
