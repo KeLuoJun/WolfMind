@@ -782,7 +782,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
     # 游戏结束，每位玩家发表感言
     await fanout_pipeline(
         agents=agents,
-        msg=await moderator[Any, Any, Msg](Prompts.to_all_reflect),
+        msg=await moderator(Prompts.to_all_reflect),
     )
 
     # 确保日志文件关闭

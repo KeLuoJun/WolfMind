@@ -62,8 +62,8 @@
 1. **克隆项目**
 
 ```bash
-git clone https://github.com/KeLuoJun/werewolves.git
-cd werewolf-game
+git clone https://github.com/KeLuoJun/WolfMind.git
+cd WolfMind
 ```
 
 2. **安装依赖**
