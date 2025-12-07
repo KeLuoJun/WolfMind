@@ -9,12 +9,14 @@ class Config:
 
     def __init__(self):
         """初始化配置，从 .env 文件加载"""
+        # 将所有相对路径锚定到 backend 目录，避免在仓库根目录下意外创建文件夹
+        self.base_dir = Path(__file__).resolve().parent
         self._env: dict[str, str] = {}
         self._load_env()
 
     def _load_env(self):
         """加载 .env 文件"""
-        env_path = Path(".env")
+        env_path = self.base_dir / ".env"
         if env_path.exists():
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -110,7 +112,11 @@ class Config:
     @property
     def checkpoint_dir(self) -> str:
         """检查点保存目录"""
-        return self._get("CHECKPOINT_DIR", "./data/checkpoints")
+        raw_path = self._get("CHECKPOINT_DIR", "data/checkpoints")
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = self.base_dir / path
+        return str(path)
 
     @property
     def checkpoint_id(self) -> str:

@@ -47,7 +47,6 @@ moderator = EchoAgent()
 def _format_impression_context(
     player_name: str,
     players: Players,
-    public_vote_history: list[dict[str, Any]],
     round_public_records: list[dict[str, Any]],
     round_num: int,
     phase: str,
@@ -69,19 +68,12 @@ def _format_impression_context(
         if seg:
             record_lines.append(seg)
 
-    recent_votes = [
-        f"第{item['round']}轮{item['phase']}: {item['voter']} -> {item['target']}"
-        for item in public_vote_history[-8:]
-    ]
-
     parts = [
         f"当前轮次: 第{round_num}轮 ({phase})",
         "你的对其他存活玩家的印象:",
         "\n".join(impression_lines) if impression_lines else "(暂无)",
         "本轮公开发言与动作:",
         "\n".join(record_lines) if record_lines else "(当前尚无公开发言)",
-        "历史公开投票记录 (最多显示近8条):",
-        "\n".join(recent_votes) if recent_votes else "(暂无记录)",
         "注意: 你的思考过程 thought 不会被其他玩家看到。",
     ]
     return "\n".join(parts)
@@ -137,7 +129,6 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
 async def _reflection_phase(
     players: Players,
     round_public_records: list[dict[str, Any]],
-    public_vote_history: list[dict[str, Any]],
     round_num: int,
     moderator_agent: EchoAgent,
     logger: GameLogger,
@@ -148,7 +139,6 @@ async def _reflection_phase(
         context = _format_impression_context(
             role.name,
             players,
-            public_vote_history,
             round_public_records,
             round_num,
             "回合反思",
@@ -185,9 +175,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
     # 初始化游戏日志
     game_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger = GameLogger(game_id)
-
-    # 跟踪公开投票和当轮公开发言，用于印象与决策上下文
-    public_vote_history: list[dict[str, Any]] = []
 
     # 初始化玩家状态
     players = Players()
@@ -278,7 +265,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         werewolf.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "夜晚讨论",
@@ -305,13 +291,11 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 # 禁用自动广播以避免跟票
                 werewolves_hub.set_auto_broadcast(False)
                 vote_prompt = await moderator(content=Prompts.to_wolves_vote)
-                msgs_vote = []
                 wolf_votes_for_majority: list[str | None] = []
                 for werewolf in players.werewolves:
                     context = _format_impression_context(
                         werewolf.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "夜晚投票",
@@ -320,7 +304,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                         _attach_context(vote_prompt, context),
                         players.current_alive,
                     )
-                    msgs_vote.append(msg)
                     speech, behavior, thought, content_raw = _extract_msg_fields(
                         msg)
                     # 记录狼人投票（狼必选目标，不允许弃权）
@@ -363,10 +346,7 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     else Prompts.to_wolves_res_abstain.format(votes)
                 )
                 await werewolves_hub.broadcast(
-                    [
-                        *msgs_vote,
-                        await moderator(wolves_res_prompt),
-                    ],
+                    await moderator(wolves_res_prompt),
                 )
 
             # 女巫回合
@@ -381,7 +361,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "context": _format_impression_context(
                         witch.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "女巫行动",
@@ -436,7 +415,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     "context": _format_impression_context(
                         seer.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "预言家行动",
@@ -472,7 +450,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         hunter.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -578,7 +555,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 context = _format_impression_context(
                     role.name,
                     players,
-                    public_vote_history,
                     round_public_records,
                     round_num,
                     "白天讨论",
@@ -614,13 +590,11 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     names_to_str(players.current_alive),
                 ),
             )
-            msgs_vote = []
             day_votes_for_majority: list[str | None] = []
             for role in players.current_alive:
                 context = _format_impression_context(
                     role.name,
                     players,
-                    public_vote_history,
                     round_public_records,
                     round_num,
                     "白天投票",
@@ -629,7 +603,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     _attach_context(vote_prompt, context),
                     players.current_alive,
                 )
-                msgs_vote.append(msg)
                 speech, behavior, thought, content_raw = _extract_msg_fields(
                     msg)
                 # 记录投票
@@ -646,14 +619,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                         speech=speech or content_raw,
                         behavior=behavior,
                         thought=thought
-                    )
-                    public_vote_history.append(
-                        {
-                            "round": round_num,
-                            "phase": "白天",
-                            "voter": role.name,
-                            "target": vote_value,
-                        },
                     )
                 else:
                     logger.log_message_detail(
@@ -679,7 +644,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                 else Prompts.to_all_res_abstain.format(votes)
             )
             voting_msgs = [
-                *msgs_vote,
                 await moderator(voting_res_prompt),
             ]
 
@@ -720,7 +684,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
                     context = _format_impression_context(
                         hunter.name,
                         players,
-                        public_vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -760,7 +723,6 @@ async def werewolves_game(agents: list[ReActAgent]) -> None:
             await _reflection_phase(
                 players,
                 round_public_records,
-                public_vote_history,
                 round_num,
                 moderator,
                 logger,

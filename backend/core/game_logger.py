@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """游戏日志记录模块"""
-import os
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 
 class GameLogger:
     """狼人杀游戏日志记录器"""
 
-    def __init__(self, game_id: str, log_dir: str = "./data/game_logs"):
+    def __init__(self, game_id: str, log_dir: Optional[str] = None):
         """初始化日志记录器
 
         Args:
@@ -16,13 +16,16 @@ class GameLogger:
             log_dir: 日志文件存储目录（相对于 backend 目录）
         """
         self.game_id = game_id
-        self.log_dir = log_dir
-        self.log_file = os.path.join(log_dir, f"game_{game_id}.log")
+        base_dir = Path(__file__).resolve().parent.parent
+        resolved_dir = Path(
+            log_dir) if log_dir else base_dir / "data" / "game_logs"
+        self.log_dir = resolved_dir
+        self.log_file = resolved_dir / f"game_{game_id}.log"
         self.current_round = 0
         self.start_time = datetime.now()
 
         # 确保日志目录存在
-        os.makedirs(log_dir, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # 初始化日志文件
         self._init_log_file()
