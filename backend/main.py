@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Backend main entry point - 重构后的主入口"""
+"""后端主入口 - 重构版本"""
 import asyncio
 import sys
 
@@ -120,10 +120,9 @@ prompt = """
 """
 
 
-
 def get_official_agents(name: str) -> ReActAgent:
-    """Get the official werewolves game agents based on config."""
-    
+    """根据配置获取官方狼人杀代理。"""
+
     # 根据配置选择模型
     if config.model_provider == "dashscope":
         agent = ReActAgent(
@@ -159,20 +158,20 @@ def get_official_agents(name: str) -> ReActAgent:
         )
     else:
         raise ValueError(f"不支持的模型提供商: {config.model_provider}")
-    
+
     return agent
 
 
 async def main() -> None:
     """The main entry point for the werewolf game."""
-    
+
     # 验证配置
     is_valid, error_msg = config.validate()
     if not is_valid:
         print(f"❌ 配置错误: {error_msg}")
         print("请检查 .env 文件并设置正确的配置")
         sys.exit(1)
-    
+
     # 打印配置信息
     config.print_config()
 
@@ -185,14 +184,14 @@ async def main() -> None:
         )
         print(f"✓ AgentScope Studio 已启用: {config.studio_url}")
 
-    # Prepare 9 players, you can change their names here
+    # 准备 9 名玩家（可在此修改名字）
     print("\n正在创建 9 个玩家...")
     players = [get_official_agents(f"Player{_ + 1}") for _ in range(9)]
     print("✓ 玩家创建完成\n")
 
-    # Note: You can replace your own agents here, or use all your own agents
+    # 提示：也可以在此替换为自定义的全部代理
 
-    # Load states from a previous checkpoint
+    # 从已有检查点加载状态
     print(f"正在加载检查点: {config.checkpoint_dir}/{config.checkpoint_id}.json")
     session = JSONSession(save_dir=config.checkpoint_dir)
     await session.load_session_state(
@@ -204,10 +203,10 @@ async def main() -> None:
     print("=" * 50)
     print("🎮 游戏开始！")
     print("=" * 50 + "\n")
-    
+
     await werewolves_game(players)
 
-    # Save the states to a checkpoint
+    # 将最新状态保存到检查点
     print(f"\n正在保存检查点: {config.checkpoint_dir}/{config.checkpoint_id}.json")
     await session.save_session_state(
         session_id=config.checkpoint_id,
