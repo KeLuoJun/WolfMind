@@ -86,6 +86,29 @@ def _attach_context(prompt: Msg, context: str) -> Msg:
     return Msg(prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
 
+def _strip_dsml_payload(text: str, field: str | None = None) -> str:
+    """移除或提取 DSML/工具调用标记，保留可读文本。"""
+    if not text or "DSML" not in text:
+        return text
+
+    # 优先提取与当前字段匹配的 parameter 文本
+    if field:
+        pattern = re.compile(
+            r"<[^>]*DSML[^>]*parameter[^>]*name=\"?" +
+            re.escape(field) +
+            r"\"?[^>]*>(.*?)</[^>]*DSML[^>]*parameter>",
+            re.DOTALL,
+        )
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip()
+
+    # 否则去掉所有 DSML 标签，保留内部可见文本
+    text = re.sub(r"<[^>]*DSML[^>]*>", "", text)
+    text = re.sub(r"</[^>]*DSML[^>]*>", "", text)
+    return text.strip()
+
+
 def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
     """从消息中提取 speech/behavior/thought 及原始内容。"""
     md = getattr(msg, "metadata", {}) or {}
@@ -93,7 +116,7 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
     behavior = md.get("behavior")
     thought = md.get("thought")
 
-    def _clean_text(val: Any) -> str:
+    def _clean_text(val: Any, field: str | None = None) -> str:
         """将可能为列表/字典或 generate_response(...) 的值转换为纯文本。"""
         if val is None:
             return ""
@@ -109,6 +132,7 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
         elif isinstance(val, dict) and "text" in val:
             val = val.get("text", "")
         val = str(val).strip()
+        val = _strip_dsml_payload(val, field)
         # 去除 generate_response("...") 包裹，即使前后有前缀/空格
         match = re.search(
             r"generate_response\(\s*[\"']?(.*?)[\"']?\s*\)\s*$", val)
@@ -121,9 +145,9 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
                 val = inline.group(1)
         return val
 
-    speech_s = _clean_text(speech)
-    behavior_s = _clean_text(behavior)
-    thought_s = _clean_text(thought)
+    speech_s = _clean_text(speech, "speech")
+    behavior_s = _clean_text(behavior, "behavior")
+    thought_s = _clean_text(thought, "thought")
     content_s = _clean_text(getattr(msg, "content", ""))
     return speech_s, behavior_s, thought_s, content_s
 
