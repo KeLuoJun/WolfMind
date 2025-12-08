@@ -59,9 +59,9 @@ async function loadLogFiles() {
     try {
         const response = await fetch('/api/logs');
         const files = await response.json();
-        
+
         const selector = document.getElementById('logSelector');
-        selector.innerHTML = files.map(file => 
+        selector.innerHTML = files.map(file =>
             `<option value="${file.name}">${file.name} (${file.time})</option>`
         ).join('');
 
@@ -83,7 +83,7 @@ async function loadGameLog(filename) {
         showLoading();
         const response = await fetch(`/api/logs/${filename}`);
         const logContent = await response.text();
-        
+
         currentLogFile = filename;
         parseAndDisplayLog(logContent);
     } catch (error) {
@@ -176,7 +176,7 @@ function parseLogContent(content) {
         if (line.match(/^\[\d{2}:\d{2}:\d{2}\]/)) {
             const timeMatch = line.match(/\[(\d{2}:\d{2}:\d{2})\]/);
             const actionMatch = line.match(/\] (.+?) \| (.+)/);
-            
+
             if (timeMatch && actionMatch) {
                 currentAction = {
                     time: timeMatch[1],
@@ -187,7 +187,7 @@ function parseLogContent(content) {
                     speech: '',
                     details: ''
                 };
-                
+
                 if (currentPhase) {
                     currentPhase.actions.push(currentAction);
                 }
@@ -226,7 +226,7 @@ function parseLogContent(content) {
                     type: 'death',
                     details: `${deathMatch[1]}: ${deathMatch[2]}`
                 });
-                
+
                 // 更新玩家状态
                 const deadPlayers = deathMatch[2].split(',').map(p => p.trim());
                 deadPlayers.forEach(playerName => {
@@ -270,17 +270,57 @@ function displayGameInfo(gameData) {
 }
 
 // 显示玩家列表
+// 显示玩家列表
 function displayPlayers(gameData) {
     const playersGrid = document.getElementById('playersGrid');
-    playersGrid.innerHTML = gameData.players.map(player => `
-        <div class="player-card ${player.alive ? '' : 'dead'}">
-            <div class="player-name">${player.name}</div>
-            <span class="player-role role-${player.role}">
-                ${roleMap[player.role] || player.role}
-            </span>
-            ${!player.alive ? '<div style="margin-top: 8px; color: #dc3545; font-weight: 600;">💀 已出局</div>' : ''}
+    const totalPlayers = gameData.players.length;
+    const radius = 260; // Distance from center
+
+    // Build HTML for table (static center) + players
+    let html = `
+        <div class="table-surface">
+            <div class="wolf-logo">🐺</div>
         </div>
-    `).join('');
+    `;
+
+    gameData.players.forEach((player, index) => {
+        // Calculate position in circle
+        // -90deg to start from top
+        const angle = (index * (360 / totalPlayers)) - 90;
+        const radians = angle * (Math.PI / 180);
+
+        // Offset from center (300, 300) since container is 600x600
+        // But we use CSS relative to 50% 50%, so simple trig is enough for transform
+        const x = Math.round(Math.cos(radians) * radius);
+        const y = Math.round(Math.sin(radians) * radius);
+
+        html += `
+            <div class="player-card ${player.alive ? '' : 'dead'}" 
+                 style="transform: translate(${x}px, ${y}px)">
+                ${!player.alive ? '<div class="death-mark">💀</div>' : ''}
+                <div class="player-avatar">
+                   ${getRoleIcon(player.role)}
+                </div>
+                <div class="player-name">${player.name}</div>
+                <div class="player-role-badge role-${player.role}">
+                    ${roleMap[player.role] || player.role}
+                </div>
+            </div>
+        `;
+    });
+
+    playersGrid.innerHTML = html;
+}
+
+function getRoleIcon(role) {
+    const icons = {
+        'werewolf': '🐺',
+        'villager': '🧑‍🌾',
+        'seer': '🔮',
+        'witch': '🧪',
+        'hunter': '🔫'
+    };
+    return icons[role] || '👤';
 }
 
 // 显示回合
@@ -312,17 +352,17 @@ function displayAction(action) {
     if (action.type === 'vote_result') {
         return `<div class="vote-result">📊 ${action.details}</div>`;
     }
-    
+
     if (action.type === 'death') {
         return `<div class="death-announcement">💀 ${action.details}</div>`;
     }
-    
+
     if (action.type === 'system') {
         return `<div class="system-announcement">📢 ${action.details}</div>`;
     }
 
     const icon = actionIcons[action.type] || '📝';
-    
+
     return `
         <div class="action-item">
             <div class="action-header">
