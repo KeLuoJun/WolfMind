@@ -45,6 +45,7 @@ moderator = EchoAgent()
 def _format_impression_context(
     player_name: str,
     players: Players,
+    vote_history: list[dict[str, Any]],
     round_public_records: list[dict[str, Any]],
     round_num: int,
     phase: str,
@@ -68,6 +69,11 @@ def _format_impression_context(
 
     knowledge = players.get_knowledge(player_name)
 
+    recent_votes = [
+        f"第{item.get('round')}轮{item.get('phase')}: {item.get('voter')} -> {item.get('target') or '弃权/无效'}"
+        for item in vote_history[-8:]
+    ]
+
     parts = [
         f"当前轮次: 第{round_num}轮 ({phase})",
         "你的对其他存活玩家的印象:",
@@ -76,6 +82,8 @@ def _format_impression_context(
         knowledge or "(目前为空)",
         "本轮公开发言与动作:",
         "\n".join(record_lines) if record_lines else "(当前尚无公开发言)",
+        "历史公开投票记录 (最多显示近8条):",
+        "\n".join(recent_votes) if recent_votes else "(暂无记录)",
         "注意: 你的思考过程 thought 不会被其他玩家看到。",
     ]
     return "\n".join(parts)
@@ -154,6 +162,7 @@ def _extract_msg_fields(msg: Msg) -> tuple[str, str, str, str]:
 
 async def _reflection_phase(
     players: Players,
+    vote_history: list[dict[str, Any]],
     round_public_records: list[dict[str, Any]],
     round_num: int,
     moderator_agent: EchoAgent,
@@ -166,6 +175,7 @@ async def _reflection_phase(
         context = _format_impression_context(
             role.name,
             players,
+            vote_history,
             round_public_records,
             round_num,
             "回合反思",
@@ -228,6 +238,9 @@ async def werewolves_game(
     # 初始化游戏日志
     game_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger = GameLogger(game_id)
+
+    # 记录可公开的投票历史，供后续回合参考
+    vote_history: list[dict[str, Any]] = []
 
     # 初始化玩家状态
     players = Players()
@@ -320,6 +333,7 @@ async def werewolves_game(
                     context = _format_impression_context(
                         werewolf.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "夜晚讨论",
@@ -351,6 +365,7 @@ async def werewolves_game(
                     context = _format_impression_context(
                         werewolf.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "夜晚投票",
@@ -416,6 +431,7 @@ async def werewolves_game(
                     "context": _format_impression_context(
                         witch.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "女巫行动",
@@ -470,6 +486,7 @@ async def werewolves_game(
                     "context": _format_impression_context(
                         seer.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "预言家行动",
@@ -505,6 +522,7 @@ async def werewolves_game(
                     context = _format_impression_context(
                         hunter.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -557,6 +575,7 @@ async def werewolves_game(
                     context = _format_impression_context(
                         killed_player,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "遗言",
@@ -619,6 +638,7 @@ async def werewolves_game(
                 context = _format_impression_context(
                     role.name,
                     players,
+                    vote_history,
                     round_public_records,
                     round_num,
                     "白天讨论",
@@ -654,11 +674,13 @@ async def werewolves_game(
                     names_to_str(players.current_alive),
                 ),
             )
+            round_vote_records: list[dict[str, Any]] = []
             day_votes_for_majority: list[str | None] = []
             for role in players.current_alive:
                 context = _format_impression_context(
                     role.name,
                     players,
+                    vote_history,
                     round_public_records,
                     round_num,
                     "白天投票",
@@ -694,12 +716,24 @@ async def werewolves_game(
                         action="弃票"
                     )
 
+                round_vote_records.append(
+                    {
+                        "round": round_num,
+                        "phase": "白天投票",
+                        "voter": role.name,
+                        "target": vote_value,
+                    },
+                )
+
             voted_player, votes = majority_vote(day_votes_for_majority)
             # 记录投票结果
             if voted_player:
                 logger.log_vote_result(voted_player, votes, "投票结果", "被投出")
             else:
                 logger.log_vote_result("无人出局", votes, "投票结果", "无人被投出")
+
+            # 投票结束后公开当轮票型，供后续回合引用
+            vote_history.extend(round_vote_records)
 
             # 一起广播投票消息以避免相互影响
             voting_res_prompt = (
@@ -720,6 +754,7 @@ async def werewolves_game(
                 context = _format_impression_context(
                     voted_player,
                     players,
+                    vote_history,
                     round_public_records,
                     round_num,
                     "遗言",
@@ -757,6 +792,7 @@ async def werewolves_game(
                     context = _format_impression_context(
                         hunter.name,
                         players,
+                        vote_history,
                         round_public_records,
                         round_num,
                         "猎人开枪",
@@ -795,6 +831,7 @@ async def werewolves_game(
             # 回合结束，存活玩家更新印象
             await _reflection_phase(
                 players,
+                vote_history,
                 round_public_records,
                 round_num,
                 moderator,
@@ -821,6 +858,7 @@ async def werewolves_game(
         context = _format_impression_context(
             role.name,
             players,
+            vote_history,
             [],
             round_num,
             "游戏总结",
