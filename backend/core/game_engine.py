@@ -331,71 +331,75 @@ async def werewolves_game(
                     for name, role in players.name_to_role.items()]
     logger.log_players(players_info)
 
-    # 游戏开始！
-    for round_num in range(1, MAX_GAME_ROUND + 1):
-        round_public_records: list[dict[str, Any]] = []
-        # 开始新回合
-        logger.start_round(round_num)
-        # 为所有玩家创建 MsgHub 以广播消息
-        alive_agents = [role.agent for role in players.current_alive]
-        async with MsgHub(
-            participants=alive_agents,
-            enable_auto_broadcast=False,  # 仅手动广播
-            name="alive_players",
-        ) as alive_players_hub:
-            # 夜晚阶段
-            logger.start_night()
-            await alive_players_hub.broadcast(
-                await moderator(Prompts.to_all_night),
-            )
-            killed_player, poisoned_player, shot_player = None, None, None
+    game_status = "正常结束"
 
-            # 狼人讨论
-            werewolf_agents = [w.agent for w in players.werewolves]
+    try:
+        # 游戏开始！
+        for round_num in range(1, MAX_GAME_ROUND + 1):
+            round_public_records: list[dict[str, Any]] = []
+            # 开始新回合
+            logger.start_round(round_num)
+            # 为所有玩家创建 MsgHub 以广播消息
+            alive_agents = [role.agent for role in players.current_alive]
             async with MsgHub(
-                werewolf_agents,
-                enable_auto_broadcast=False,
-                announcement=await moderator(
-                    Prompts.to_wolves_discussion.format(
-                        names_to_str(werewolf_agents),
-                        names_to_str(players.current_alive),
+                participants=alive_agents,
+                enable_auto_broadcast=False,  # 仅手动广播
+                name="alive_players",
+            ) as alive_players_hub:
+                # 夜晚阶段
+                logger.start_night()
+                await alive_players_hub.broadcast(
+                    await moderator(Prompts.to_all_night),
+                )
+                killed_player, poisoned_player, shot_player = None, None, None
+
+                # 狼人讨论
+                werewolf_agents = [w.agent for w in players.werewolves]
+                async with MsgHub(
+                    werewolf_agents,
+                    enable_auto_broadcast=False,
+                    announcement=await moderator(
+                        Prompts.to_wolves_discussion.format(
+                            names_to_str(werewolf_agents),
+                            names_to_str(players.current_alive),
+                        ),
                     ),
-                ),
-                name="werewolves",
-            ) as werewolves_hub:
-                # 讨论
-                n_werewolves = len(players.werewolves)
-                for _ in range(1, MAX_DISCUSSION_ROUND * n_werewolves + 1):
-                    werewolf = players.werewolves[_ % n_werewolves]
-                    context = _format_impression_context(
-                        werewolf.name,
-                        players,
-                        vote_history,
-                        round_public_records,
-                        round_num,
-                        "夜晚讨论",
-                    )
-                    res = await werewolf.discuss_with_team(
-                        _attach_context(await moderator(""), context),
-                    )
-                    # 记录狼人讨论
-                    speech, behavior, thought, content_raw = _extract_msg_fields(
-                        res)
-                    # 手动广播去隐私的消息，避免 thought 外泄
-                    await werewolves_hub.broadcast(
-                        _make_public_msg(res, speech, behavior, content_raw),
-                    )
-                    logger.log_message_detail(
-                        "狼人讨论",
-                        werewolf.name,
-                        speech=speech or content_raw,
-                        behavior=behavior,
-                        thought=thought,
-                    )
-                    if _ % n_werewolves == 0 and res.metadata.get(
-                        "reach_agreement",
-                    ):
-                        break
+                    name="werewolves",
+                ) as werewolves_hub:
+                    # 讨论
+                    n_werewolves = len(players.werewolves)
+                    for _ in range(1, MAX_DISCUSSION_ROUND * n_werewolves + 1):
+                        werewolf = players.werewolves[_ % n_werewolves]
+                        context = _format_impression_context(
+                            werewolf.name,
+                            players,
+                            vote_history,
+                            round_public_records,
+                            round_num,
+                            "夜晚讨论",
+                        )
+                        res = await werewolf.discuss_with_team(
+                            _attach_context(await moderator(""), context),
+                        )
+                        # 记录狼人讨论
+                        speech, behavior, thought, content_raw = _extract_msg_fields(
+                            res)
+                        # 手动广播去隐私的消息，避免 thought 外泄
+                        await werewolves_hub.broadcast(
+                            _make_public_msg(
+                                res, speech, behavior, content_raw),
+                        )
+                        logger.log_message_detail(
+                            "狼人讨论",
+                            werewolf.name,
+                            speech=speech or content_raw,
+                            behavior=behavior,
+                            thought=thought,
+                        )
+                        if _ % n_werewolves == 0 and res.metadata.get(
+                            "reach_agreement",
+                        ):
+                            break
 
                 # 狼人投票
                 # 禁用自动广播以避免跟票
@@ -674,7 +678,6 @@ async def werewolves_game(
             if res:
                 logger.log_announcement(f"游戏结束: {res}")
                 await moderator(res)
-                logger.close()
                 break
 
             # 讨论
@@ -1111,30 +1114,34 @@ async def werewolves_game(
                 async with MsgHub(players.all_players) as all_players_hub:
                     res_msg = await moderator(res)
                     await all_players_hub.broadcast(res_msg)
-                logger.close()
                 break
 
         # 天黑了
         first_day = False
 
-    # 游戏结束，每位玩家发表感言
-    final_prompt = await moderator(Prompts.to_all_reflect)
-    for role in players.all_roles:
-        context = _format_impression_context(
-            role.name,
-            players,
-            vote_history,
-            [],
-            round_num,
-            "游戏总结",
-        )
-        await role.agent(
-            _attach_context(final_prompt, context),
-        )
+        # 游戏结束，每位玩家发表感言
+        final_prompt = await moderator(Prompts.to_all_reflect)
+        for role in players.all_roles:
+            context = _format_impression_context(
+                role.name,
+                players,
+                vote_history,
+                [],
+                round_num,
+                "游戏总结",
+            )
+            await role.agent(
+                _attach_context(final_prompt, context),
+            )
 
-    # 持久化本局累计的知识
-    knowledge_store.bulk_update(players.export_all_knowledge())
-    knowledge_store.save()
+        # 持久化本局累计的知识
+        knowledge_store.bulk_update(players.export_all_knowledge())
+        knowledge_store.save()
 
-    # 确保日志文件关闭
-    logger.close()
+    except BaseException as exc:  # pylint: disable=broad-except
+        game_status = "异常终止"
+        logger.log_announcement(f"游戏异常终止: {exc}")
+        raise
+    finally:
+        # 确保日志文件关闭并标记状态
+        logger.close(status=game_status)

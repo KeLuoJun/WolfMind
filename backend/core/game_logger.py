@@ -23,6 +23,7 @@ class GameLogger:
         self.log_file = resolved_dir / f"game_{game_id}.log"
         self.current_round = 0
         self.start_time = datetime.now()
+        self.closed = False  # Initialize closed status
 
         # 确保日志目录存在
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -219,10 +220,14 @@ class GameLogger:
             self._write_field(f, "印象", impression_text)
             f.write("\n")
 
-    def close(self):
-        """关闭日志文件"""
+    def close(self, status: str = "正常结束"):
+        """关闭日志文件并写入最终状态。"""
+        if self.closed:
+            return
+        self.closed = True
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write("\n" + "=" * 80 + "\n")
             f.write(
                 f"游戏结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"游戏状态: {status}\n")
             f.write("=" * 80 + "\n")
