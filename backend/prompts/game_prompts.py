@@ -122,6 +122,30 @@ class EnglishPrompts:
         "(abstain/invalid votes)."
     )
 
+    to_all_pk_speech = (
+        "A tie occurred. PK round {1}: tied players {0} each give one more "
+        "speech in order."
+    )
+
+    to_all_pk_vote = (
+        "PK speeches finished. All alive players must vote for one among "
+        "the tied players: {0}. Abstaining is not allowed."
+    )
+
+    to_all_pk_res = (
+        "PK round {0} voting result: {1}. {2} will be eliminated."
+    )
+
+    to_all_pk_tie = (
+        "PK round {0} voting is still tied ({1}). Tied players: {2}. "
+        "A new PK round will start."
+    )
+
+    to_all_pk_fallback = (
+        "Multiple PK rounds are still tied ({0}). {1} is eliminated by "
+        "name order fallback."
+    )
+
     to_all_wolf_win = (
         "There are {n_alive} players alive, and {n_werewolves} of them are "
         "werewolves. "
@@ -198,6 +222,26 @@ class ChinesePrompts:
     to_wolves_res_abstain = "[仅狼人可见] 投票结果为 {}，本轮无人被淘汰（无效/未选择）。"
 
     to_all_res_abstain = "投票结果为 {}，本轮无人被淘汰（弃权/无效票占多数）。"
+
+    to_all_pk_speech = (
+        "出现平票，需要进行 PK。第{1}轮 PK，平票玩家：{0}，仅这些玩家依次再发言一次。"
+    )
+
+    to_all_pk_vote = (
+        "PK 发言结束。请所有存活玩家仅在平票玩家中投票选择一人：{0}。不允许弃权。"
+    )
+
+    to_all_pk_res = (
+        "第{0}轮 PK 投票结果为 {1}，{2} 将被淘汰。"
+    )
+
+    to_all_pk_tie = (
+        "第{0}轮 PK 投票仍然平票 ({1})，平票玩家：{2}。将进入下一轮 PK。"
+    )
+
+    to_all_pk_fallback = (
+        "连续多轮 PK 仍未决出结果 ({0})，按姓名顺位淘汰 {1}。"
+    )
 
     to_all_wolf_win = (
         "当前存活玩家共{n_alive}人，其中{n_werewolves}人为狼人。"

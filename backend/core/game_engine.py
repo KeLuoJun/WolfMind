@@ -441,7 +441,9 @@ async def werewolves_game(
                             action="未选择目标(应当必选)"
                         )
 
-                killed_player, votes = majority_vote(wolf_votes_for_majority)
+                killed_player, votes, _wolf_top_candidates = majority_vote(
+                    wolf_votes_for_majority,
+                )
                 # 记录狼人投票结果
                 logger.log_vote_result(
                     killed_player or "无人出局",
@@ -768,7 +770,194 @@ async def werewolves_game(
                     },
                 )
 
-            voted_player, votes = majority_vote(day_votes_for_majority)
+            voted_player, votes, top_candidates = majority_vote(
+                day_votes_for_majority,
+            )
+            pk_round = 0
+            pk_vote_records: list[dict[str, Any]] = []
+            pk_max_rounds = 3  # 安全上限，避免极端情况下无限循环
+
+            while top_candidates and len(top_candidates) > 1:
+                pk_round += 1
+                pk_candidates = top_candidates
+
+                # 广播 PK 发言轮次
+                await alive_players_hub.broadcast(
+                    await moderator(
+                        Prompts.to_all_pk_speech.format(
+                            names_to_str(pk_candidates),
+                            pk_round,
+                        ),
+                    ),
+                )
+
+                # 平票玩家依次再发言一次
+                for candidate_name in pk_candidates:
+                    role_obj = players.name_to_role_obj.get(candidate_name)
+                    if not role_obj or not role_obj.is_alive:
+                        continue
+                    context = _format_impression_context(
+                        candidate_name,
+                        players,
+                        vote_history,
+                        round_public_records,
+                        round_num,
+                        f"PK发言#{pk_round}",
+                    )
+                    msg = await role_obj.day_discussion(
+                        _attach_context(await moderator(""), context),
+                    )
+                    speech, behavior, thought, content_raw = _extract_msg_fields(
+                        msg)
+                    await alive_players_hub.broadcast(
+                        _make_public_msg(msg, speech, behavior, content_raw),
+                    )
+                    logger.log_message_detail(
+                        "PK发言",
+                        candidate_name,
+                        speech=speech or content_raw,
+                        behavior=behavior,
+                        thought=thought,
+                        action=f"第{pk_round}轮",
+                    )
+                    round_public_records.append(
+                        {
+                            "player": candidate_name,
+                            "speech": speech or content_raw,
+                            "behavior": behavior,
+                            "phase": f"PK发言#{pk_round}",
+                        },
+                    )
+
+                # PK 投票（仅在平票玩家中选择，不允许弃权）
+                pk_vote_prompt = await moderator(
+                    Prompts.to_all_pk_vote.format(
+                        names_to_str(pk_candidates),
+                    ),
+                )
+                pk_votes_for_majority: list[str | None] = []
+                for role in players.current_alive:
+                    context = _format_impression_context(
+                        role.name,
+                        players,
+                        vote_history,
+                        round_public_records,
+                        round_num,
+                        f"PK投票#{pk_round}",
+                    )
+                    vote_msg = await role.agent(
+                        _attach_context(pk_vote_prompt, context),
+                        structured_model=get_vote_model(
+                            [
+                                players.name_to_role_obj[name]
+                                for name in pk_candidates
+                                if name in players.name_to_role_obj
+                            ],
+                            allow_abstain=False,
+                        ),
+                    )
+                    speech, behavior, thought, content_raw = _extract_msg_fields(
+                        vote_msg)
+                    vote_choice = vote_msg.metadata.get("vote")
+                    vote_value = str(vote_choice).strip(
+                    ) if vote_choice else None
+                    pk_votes_for_majority.append(vote_value)
+
+                    if vote_value:
+                        logger.log_vote(
+                            role.name,
+                            vote_value,
+                            f"PK投票#{pk_round}",
+                            speech=speech or content_raw,
+                            behavior=behavior,
+                            thought=thought,
+                        )
+                    else:
+                        logger.log_message_detail(
+                            "PK投票",
+                            role.name,
+                            speech=speech or content_raw,
+                            behavior=behavior,
+                            thought=thought,
+                            action=f"第{pk_round}轮弃权/无效票",
+                        )
+
+                    pk_vote_records.append(
+                        {
+                            "round": round_num,
+                            "phase": f"PK投票#{pk_round}",
+                            "voter": role.name,
+                            "target": vote_value,
+                        },
+                    )
+
+                voted_player, votes, top_candidates = majority_vote(
+                    pk_votes_for_majority,
+                )
+
+                if voted_player:
+                    logger.log_vote_result(
+                        voted_player,
+                        votes,
+                        f"PK投票结果#{pk_round}",
+                        "被投出",
+                    )
+                else:
+                    logger.log_vote_result(
+                        "无人出局",
+                        votes,
+                        f"PK投票结果#{pk_round}",
+                        "平票/无效",
+                    )
+
+                # 广播 PK 投票结果或继续 PK
+                if voted_player:
+                    await alive_players_hub.broadcast(
+                        await moderator(
+                            Prompts.to_all_pk_res.format(
+                                pk_round,
+                                votes,
+                                voted_player,
+                            ),
+                        ),
+                    )
+                elif top_candidates:
+                    await alive_players_hub.broadcast(
+                        await moderator(
+                            Prompts.to_all_pk_tie.format(
+                                pk_round,
+                                votes,
+                                names_to_str(top_candidates),
+                            ),
+                        ),
+                    )
+
+                if voted_player:
+                    break
+
+                if pk_round >= pk_max_rounds and len(top_candidates) > 1:
+                    # 防止极端情况无限 PK：按姓名排序决出
+                    voted_player = sorted(top_candidates)[0]
+                    votes = (
+                        f"{votes}; 连续{pk_round}轮平票，按姓名顺位淘汰 {voted_player}"
+                    )
+                    logger.log_action(
+                        "PK仲裁",
+                        f"多轮平票后强制淘汰 {voted_player}",
+                    )
+                    await alive_players_hub.broadcast(
+                        await moderator(
+                            Prompts.to_all_pk_fallback.format(
+                                votes,
+                                voted_player,
+                            ),
+                        ),
+                    )
+                    break
+
+            # 将 PK 期间的票型也纳入历史
+            round_vote_records.extend(pk_vote_records)
+
             # 记录投票结果
             if voted_player:
                 logger.log_vote_result(voted_player, votes, "投票结果", "被投出")

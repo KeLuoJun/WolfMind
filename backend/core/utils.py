@@ -38,11 +38,11 @@ def is_abstain_vote(vote: Any) -> bool:
     return vote_str.lower() in ABSTAIN_KEYWORDS
 
 
-def majority_vote(votes: list[str | None]) -> tuple[str | None, str]:
-    """在剔除弃权/无效票后返回最高票玩家及计票详情。"""
+def majority_vote(votes: list[str | None]) -> tuple[str | None, str, list[str]]:
+    """在剔除弃权/无效票后返回最高票玩家、计票详情与最高票候选人列表。"""
 
     if not votes:
-        return None, "无人投票"
+        return None, "无人投票", []
 
     counter: Counter[str] = Counter()
     abstain_count = 0
@@ -60,10 +60,15 @@ def majority_vote(votes: list[str | None]) -> tuple[str | None, str]:
     conditions = ", ".join(parts) if parts else "全员弃权/无效票"
 
     if not counter:
-        return None, conditions
+        return None, conditions, []
 
-    result = max(counter, key=counter.get)
-    return result, conditions
+    max_votes = max(counter.values())
+    top_candidates = [name for name, count in counter.items()
+                      if count == max_votes]
+
+    # 只有唯一最高票时直接返回该玩家，否则返回 None 并携带平票候选列表
+    result = top_candidates[0] if len(top_candidates) == 1 else None
+    return result, conditions, top_candidates
 
 
 def names_to_str(agents: list[str] | list[ReActAgent] | list) -> str:
