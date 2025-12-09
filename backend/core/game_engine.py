@@ -415,10 +415,23 @@ async def werewolves_game(
                         _attach_context(vote_prompt, context),
                         players.current_alive,
                     )
+                    if not msg:
+                        wolf_votes_for_majority.append(None)
+                        logger.log_message_detail(
+                            "狼人投票",
+                            werewolf.name,
+                            speech="",
+                            behavior="",
+                            thought="",
+                            action="未返回消息(计为空票)",
+                        )
+                        continue
+
                     speech, behavior, thought, content_raw = _extract_msg_fields(
                         msg)
                     # 记录狼人投票（狼必选目标，不允许弃权）
-                    raw_vote = msg.metadata.get("vote")
+                    raw_vote = getattr(msg, "metadata", {}) or {}
+                    raw_vote = raw_vote.get("vote")
                     vote_value = str(raw_vote).strip() if raw_vote else None
                     wolf_votes_for_majority.append(vote_value)
 
@@ -734,10 +747,15 @@ async def werewolves_game(
                     _attach_context(vote_prompt, context),
                     players.current_alive,
                 )
-                speech, behavior, thought, content_raw = _extract_msg_fields(
-                    msg)
+                if not msg:
+                    speech = behavior = thought = content_raw = ""
+                    raw_vote = None
+                else:
+                    speech, behavior, thought, content_raw = _extract_msg_fields(
+                        msg)
+                    raw_vote = getattr(msg, "metadata", {}) or {}
+                    raw_vote = raw_vote.get("vote")
                 # 记录投票
-                raw_vote = msg.metadata.get("vote")
                 abstained = is_abstain_vote(raw_vote)
                 vote_value = None if abstained else str(raw_vote).strip()
                 day_votes_for_majority.append(vote_value)
@@ -807,11 +825,15 @@ async def werewolves_game(
                     msg = await role_obj.day_discussion(
                         _attach_context(await moderator(""), context),
                     )
-                    speech, behavior, thought, content_raw = _extract_msg_fields(
-                        msg)
-                    await alive_players_hub.broadcast(
-                        _make_public_msg(msg, speech, behavior, content_raw),
-                    )
+                    if msg:
+                        speech, behavior, thought, content_raw = _extract_msg_fields(
+                            msg)
+                        await alive_players_hub.broadcast(
+                            _make_public_msg(
+                                msg, speech, behavior, content_raw),
+                        )
+                    else:
+                        speech = behavior = thought = content_raw = ""
                     logger.log_message_detail(
                         "PK发言",
                         candidate_name,
@@ -856,11 +878,16 @@ async def werewolves_game(
                             allow_abstain=False,
                         ),
                     )
-                    speech, behavior, thought, content_raw = _extract_msg_fields(
-                        vote_msg)
-                    vote_choice = vote_msg.metadata.get("vote")
-                    vote_value = str(vote_choice).strip(
-                    ) if vote_choice else None
+                    if vote_msg:
+                        speech, behavior, thought, content_raw = _extract_msg_fields(
+                            vote_msg)
+                        raw_vote_meta = getattr(vote_msg, "metadata", {}) or {}
+                        vote_choice = raw_vote_meta.get("vote")
+                        vote_value = str(vote_choice).strip(
+                        ) if vote_choice else None
+                    else:
+                        speech = behavior = thought = content_raw = ""
+                        vote_value = None
                     pk_votes_for_majority.append(vote_value)
 
                     if vote_value:
