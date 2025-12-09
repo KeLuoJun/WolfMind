@@ -211,6 +211,11 @@ class Witch(BaseRole):
 
         result = {}
 
+        # 女巫毒药不能对已被狼人击杀的目标再次使用
+        poison_candidates = [
+            player for player in alive_players if player.name != killed_player
+        ]
+
         # 解药环节
         if self.has_healing and killed_player and killed_player != self.name:
             prompt = await moderator(
@@ -236,11 +241,11 @@ class Witch(BaseRole):
                 self.has_healing = False
                 result["resurrect"] = killed_player
 
-        # 毒药环节（如果本回合没有使用解药）
-        if self.has_poison and not result.get("resurrect"):
+        # 毒药环节（如果本回合没有使用解药且存在可毒杀目标）
+        if self.has_poison and not result.get("resurrect") and poison_candidates:
             prompt = await moderator(
                 f"[{self.name} ONLY] {self.name}，你要使用毒药吗？"
-                f"当前存活玩家：{', '.join([p.name for p in alive_players])}"
+                f"当前可毒杀的存活玩家（不含被狼人击杀者）：{', '.join([p.name for p in poison_candidates])}"
             )
 
             if context:
@@ -249,7 +254,7 @@ class Witch(BaseRole):
 
             msg_poison = await self.agent(
                 prompt,
-                structured_model=get_poison_model(alive_players),
+                structured_model=get_poison_model(poison_candidates),
             )
 
             result["poison_speech"] = msg_poison.metadata.get("speech")
