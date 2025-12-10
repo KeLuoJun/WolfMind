@@ -47,8 +47,11 @@ backend/data/checkpoints/*.json
 backend/data/game_logs/*.log
 
 # Logs
+# 默认忽略日志，但保留静态目录下的日志
 *.log
 logs/
+!static/*.log
+!static/**/*.log
 
 # OS
 .DS_Store
