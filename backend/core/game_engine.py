@@ -196,6 +196,67 @@ def _make_public_msg(
     return Msg(msg.name, content, role=msg.role, metadata=metadata)
 
 
+async def _process_last_words(
+    player_names: list[str],
+    players: Players,
+    vote_history: list[dict[str, Any]],
+    round_public_records: list[dict[str, Any]],
+    round_num: int,
+    hub: MsgHub,
+    logger: GameLogger,
+    moderator_agent: EchoAgent,
+) -> None:
+    """让具备资格的出局玩家依次发表遗言。"""
+
+    seen: set[str] = set()
+    for name in player_names:
+        if not name or name in seen:
+            continue
+        seen.add(name)
+
+        prompt_msg = await moderator_agent(
+            Prompts.to_dead_player.format(name),
+        )
+        await hub.broadcast(prompt_msg)
+
+        role_obj = players.name_to_role_obj.get(name)
+        if not role_obj:
+            continue
+
+        context = _format_impression_context(
+            name,
+            players,
+            vote_history,
+            round_public_records,
+            round_num,
+            "遗言",
+        )
+
+        last_msg = await role_obj.leave_last_words(
+            _attach_context(prompt_msg, context),
+        )
+
+        speech, behavior, thought, content_raw = _extract_msg_fields(last_msg)
+        logger.log_message_detail(
+            "遗言",
+            name,
+            speech=speech or content_raw,
+            behavior=behavior,
+            thought=thought,
+        )
+
+        round_public_records.append(
+            {
+                "player": name,
+                "speech": speech or content_raw,
+                "behavior": behavior,
+                "phase": "遗言",
+            },
+        )
+
+        await hub.broadcast(_make_public_msg(last_msg, speech, behavior, content_raw))
+
+
 async def _reflection_phase(
     players: Players,
     vote_history: list[dict[str, Any]],
@@ -282,12 +343,6 @@ async def werewolves_game(
     # 初始化玩家状态
     players = Players()
 
-    # 女巫是否拥有解药和毒药
-    healing, poison = True, True
-
-    # 如果是第一天，死者可以发表遗言
-    first_day = True
-
     # 广播游戏开始消息
     async with MsgHub(participants=agents) as greeting_hub:
         await greeting_hub.broadcast(
@@ -336,6 +391,7 @@ async def werewolves_game(
     try:
         # 游戏开始！
         for round_num in range(1, MAX_GAME_ROUND + 1):
+            is_first_night = round_num == 1
             round_public_records: list[dict[str, Any]] = []
             # 开始新回合
             logger.start_round(round_num)
@@ -613,58 +669,29 @@ async def werewolves_game(
 
             # 白天阶段
             logger.start_day()
-            if len([_ for _ in dead_tonight if _]) > 0:
-                announcement = f"天亮了，请所有玩家睁眼。昨晚 {names_to_str([_ for _ in dead_tonight if _])} 被淘汰。"
+            night_deaths = [_ for _ in dead_tonight if _]
+            if night_deaths:
+                announcement = f"天亮了，请所有玩家睁眼。昨晚 {names_to_str(night_deaths)} 被淘汰。"
                 logger.log_announcement(announcement)
                 await alive_players_hub.broadcast(
                     await moderator(
                         Prompts.to_all_day.format(
-                            names_to_str([_ for _ in dead_tonight if _]),
+                            names_to_str(night_deaths),
                         ),
                     ),
                 )
 
-                # 第一晚被杀的玩家发表遗言
-                if killed_player and first_day:
-                    msg_moderator = await moderator(
-                        Prompts.to_dead_player.format(killed_player),
-                    )
-                    await alive_players_hub.broadcast(msg_moderator)
-                    # 发表遗言（携带个人理解作为上下文）
-                    role_obj = players.name_to_role_obj[killed_player]
-                    context = _format_impression_context(
-                        killed_player,
+                if is_first_night:
+                    night_last_words = [killed_player, poisoned_player]
+                    await _process_last_words(
+                        night_last_words,
                         players,
                         vote_history,
                         round_public_records,
                         round_num,
-                        "遗言",
-                    )
-                    last_msg = await role_obj.leave_last_words(
-                        _attach_context(msg_moderator, context),
-                    )
-
-                    speech, behavior, thought, content_raw = _extract_msg_fields(
-                        last_msg)
-                    logger.log_message_detail(
-                        "遗言",
-                        killed_player,
-                        speech=speech or content_raw,
-                        behavior=behavior,
-                        thought=thought,
-                    )
-                    round_public_records.append(
-                        {
-                            "player": killed_player,
-                            "speech": speech or content_raw,
-                            "behavior": behavior,
-                            "phase": "遗言",
-                        },
-                    )
-
-                    await alive_players_hub.broadcast(
-                        _make_public_msg(last_msg, speech,
-                                         behavior, content_raw),
+                        alive_players_hub,
+                        logger,
+                        moderator,
                     )
 
             else:
@@ -1003,55 +1030,22 @@ async def werewolves_game(
                 if voted_player
                 else Prompts.to_all_res_abstain.format(votes)
             )
-            voting_msgs = [
-                await moderator(voting_res_prompt),
-            ]
 
-            # 如果被投出，发表遗言
-            if voted_player:
-                prompt_msg = await moderator(
-                    Prompts.to_dead_player.format(voted_player),
-                )
-                role_obj = players.name_to_role_obj[voted_player]
-                context = _format_impression_context(
-                    voted_player,
+            voting_res_msg = await moderator(voting_res_prompt)
+            await alive_players_hub.broadcast(voting_res_msg)
+
+            day_last_words = [voted_player] if voted_player else []
+            if day_last_words:
+                await _process_last_words(
+                    day_last_words,
                     players,
                     vote_history,
                     round_public_records,
                     round_num,
-                    "遗言",
+                    alive_players_hub,
+                    logger,
+                    moderator,
                 )
-                last_msg = await role_obj.leave_last_words(
-                    _attach_context(prompt_msg, context),
-                )
-
-                speech, behavior, thought, content_raw = _extract_msg_fields(
-                    last_msg)
-                logger.log_message_detail(
-                    "遗言",
-                    voted_player,
-                    speech=speech or content_raw,
-                    behavior=behavior,
-                    thought=thought,
-                )
-                round_public_records.append(
-                    {
-                        "player": voted_player,
-                        "speech": speech or content_raw,
-                        "behavior": behavior,
-                        "phase": "遗言",
-                    },
-                )
-
-                voting_msgs.extend(
-                    [
-                        prompt_msg,
-                        _make_public_msg(last_msg, speech,
-                                         behavior, content_raw),
-                    ],
-                )
-
-            await alive_players_hub.broadcast(voting_msgs)
 
             # 如果被投出的玩家是猎人，他可以开枪带走一人
             shot_player = None
@@ -1121,9 +1115,6 @@ async def werewolves_game(
                     res_msg = await moderator(res)
                     await all_players_hub.broadcast(res_msg)
                 break
-
-        # 天黑了
-        first_day = False
 
         # 游戏结束，每位玩家发表感言
         final_prompt = await moderator(Prompts.to_all_reflect)
