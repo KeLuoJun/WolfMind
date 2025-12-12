@@ -1,4 +1,4 @@
-# 狼人杀 AI 智能体游戏
+# Agent 狼人杀游戏
 
 <div align="center">
 
@@ -106,6 +106,13 @@ python main.py
 
 就这么简单！游戏将自动开始，你可以在终端看到 AI 智能体之间的对话和游戏进程。
 
+
+**模型选择提示**：
+
+- DashScope：最小配置，推荐直连官方 API。
+- OpenAI 兼容：支持自定义 `OPENAI_BASE_URL`，可接驳自建代理。
+- Ollama：在本地运行模型，仅需安装 Ollama 和对应模型。
+
 ## 项目结构
 
 ```
@@ -132,6 +139,22 @@ werewolf-game/
 └── README.md                 # 项目说明文档
 ```
 
+## 系统架构与关键模块
+
+- 主入口：[backend/main.py](backend/main.py) 负责读取配置、初始化 9 名 ReActAgent 玩家、构建知识库并启动一局完整对局。
+- 配置管理：[backend/config.py](backend/config.py) 从 `.env` 读取模型提供商、API Key、回合上限和检查点路径等参数，并提供校验和脱敏打印。
+- 核心引擎：[backend/core/game_engine.py](backend/core/game_engine.py) 实现夜晚/白天循环、平票 PK、猎人开枪、胜负判定以及跨局知识更新。
+- 日志系统：[backend/core/game_logger.py](backend/core/game_logger.py) 将每局的关键动作写入 `backend/data/game_logs/game_<timestamp>.log`，包含发言、行为、思考、投票与死亡信息。
+- 长期记忆：[backend/core/knowledge_base.py](backend/core/knowledge_base.py) 为每名玩家维护持久化知识，启动时创建带时间戳的新检查点，回合后自动增量保存。
+- 角色逻辑：[backend/models/roles.py](backend/models/roles.py) 定义狼人、村民、预言家、女巫、猎人五类角色的专属夜晚行为、投票/讨论流程及提示词。
+- 数据模型：[backend/models/schemas.py](backend/models/schemas.py) 用 Pydantic 规范化输出结构（speech/behavior/thought、投票、毒药/查验/开枪等）。
+- 提示词集合：[backend/prompts/game_prompts.py](backend/prompts/game_prompts.py) 与 [backend/prompts/role_prompts.py](backend/prompts/role_prompts.py) 分别提供主持人/流程提示与角色策略指南。
+
+## 运行时输出与数据
+
+- **游戏日志**：默认写入 `backend/data/game_logs`，包含完整时序的发言、投票、行动及胜负公告，便于回放与分析。
+- **检查点/知识库**：每次启动都会在 `backend/data/checkpoints` 新建带时间戳的 `players_checkpoint_*.json`，保存玩家的跨局经验；本局结束时会合并最新认知并落盘。
+
 
 
 ## 游戏规则
@@ -143,6 +166,14 @@ werewolf-game/
 - **预言家（1人）**：每晚可查验一名玩家的真实身份
 - **女巫（1人）**：拥有解药（救人）和毒药（杀人），各一次
 - **猎人（1人）**：被淘汰时可以带走一名玩家
+
+## 关键实现要点
+
+- 固定 9 名玩家（默认名称 Player1-9），随机分配 3 狼人、3 村民、预言家、女巫、猎人各 1 名。
+- 夜晚阶段包含：狼人团队讨论与强制投票、女巫的解药/毒药决策（不可同夜双药）、预言家查验、猎人被刀时可立即开枪。
+- 白天阶段支持轮流发言、公开投票、最多 3 轮 PK 平票仲裁（再平票按姓名顺位淘汰），猎人被投出时可开枪。
+- 每轮结束存活玩家会更新对他人的印象，并写入跨局知识库；本局完成后合并并保存所有玩家长期经验。
+- 胜负判定：清空狼队即好人胜；若神职或平民一侧被清空，或狼人数量达到存活人数一半，则狼人胜。
 
 ### 游戏流程
 
@@ -166,7 +197,6 @@ werewolf-game/
 ## 游戏日志
 
 每局游戏都会自动生成详细的日志文件，保存在 `backend/data/game_logs/` 目录。
-
 
 ### 日志内容
 
@@ -244,6 +274,12 @@ werewolf-game/
     (发言) Player5的发言显得很真诚，但我们需要更多的线索来确定谁是狼人。我们应该仔细考虑每个玩家的言行，找出不一致的地方。
 ```
 
+### 示例完整游戏日志
+
+示例完整游戏日志/检查点快照存放于 `static/`，可直接查看：
+- [static/players_checkpoint_20251210_150049_glm-4.6.json](static/players_checkpoint_20251210_150049_glm-4.6.json)
+- [static/players_checkpoint_20251210_164823_glm-4.6.log](static/game_20251210_150049_glm-4.6.log)
+- 更多示例请查看 `static/` 目录
 
 
 ## 技术栈
