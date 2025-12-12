@@ -91,9 +91,6 @@ MODEL_PROVIDER=dashscope  # dashscope/openai/ollama
 # 配置对应的 API Key
 DASHSCOPE_API_KEY=your_api_key_here
 
-# 设置游戏语言
-GAME_LANGUAGE=zh  # zh=中文, en=英文
-
 # (可选) 启用 AgentScope Studio 可视化
 ENABLE_STUDIO=false
 ```
