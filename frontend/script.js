@@ -4,6 +4,8 @@ let autoRefreshInterval = null;
 let lastLogHash = '';
 let showAllHistory = false;
 let apiBaseUrl = '';
+let playerReflections = {}; // Store player reflections for modal
+let currentGameData = null; // Store current game data
 
 // ===== Role Mapping =====
 const roleMap = {
@@ -151,6 +153,7 @@ function stopAutoRefresh() {
 
 // ===== Render UI =====
 function renderUI(gameData) {
+    currentGameData = gameData; // Store for modal access
     renderGameStats(gameData);
     renderTable(gameData);
     renderFeed(gameData);
@@ -226,6 +229,9 @@ function renderTable(gameData) {
             <div class="player-name">${player.name}</div>
             <div class="player-role">${roleMap[player.role] || player.role || '未知'}</div>
         `;
+
+        // Click handler for player detail modal
+        card.addEventListener('click', () => openPlayerModal(player.name));
 
         if (player.alive === false) {
             const marker = document.createElement('div');
@@ -507,8 +513,154 @@ function parseLogContent(content) {
     }
 
     if (currentRound) gameData.rounds.push(currentRound);
+
+    // Parse reflections separately
+    parseReflections(content);
+
     return gameData;
 }
+
+// ===== Parse Reflections =====
+function parseReflections(content) {
+    playerReflections = {};
+    const lines = content.split('\n');
+
+    let currentPlayer = null;
+    let currentReflection = { thinking: '', impressions: '' };
+    let currentSection = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Detect reflection header
+        if (trimmed.match(/^\[\d{2}:\d{2}:\d{2}\].*回合-反思.*Player\d+/)) {
+            // Save previous player's reflection
+            if (currentPlayer && (currentReflection.thinking || currentReflection.impressions)) {
+                playerReflections[currentPlayer] = { ...currentReflection };
+            }
+
+            // Extract new player name
+            const match = trimmed.match(/Player\d+/);
+            if (match) {
+                currentPlayer = match[0];
+                currentReflection = { thinking: '', impressions: '' };
+                currentSection = null;
+            }
+        } else if (currentPlayer) {
+            // Skip game end info lines
+            if (trimmed.includes('游戏异常终止') ||
+                trimmed.includes('游戏结束时间') ||
+                trimmed.includes('游戏状态') ||
+                trimmed.includes('游戏结束') ||
+                trimmed.startsWith('游戏')) {
+                currentSection = null;
+                continue;
+            }
+
+            // Parse reflection content
+            if (trimmed.startsWith('(思考)') || line.includes('(思考)')) {
+                currentSection = 'thinking';
+                const content = trimmed.replace(/^\s*\(思考\)\s*/, '');
+                currentReflection.thinking = content;
+            } else if (trimmed.startsWith('(印象)') || line.includes('(印象)')) {
+                currentSection = 'impressions';
+                const content = trimmed.replace(/^\s*\(印象\)\s*/, '');
+                currentReflection.impressions = content;
+            } else if (currentSection && !trimmed.startsWith('[') && !trimmed.match(/^[-=]+$/)) {
+                if (currentSection === 'thinking') {
+                    currentReflection.thinking += '\n' + trimmed;
+                } else if (currentSection === 'impressions') {
+                    currentReflection.impressions += '\n' + trimmed;
+                }
+            }
+        }
+    }
+
+    // Save last player's reflection
+    if (currentPlayer && (currentReflection.thinking || currentReflection.impressions)) {
+        playerReflections[currentPlayer] = { ...currentReflection };
+    }
+}
+
+// ===== Modal Functions =====
+function openPlayerModal(playerName) {
+    const modal = document.getElementById('playerModal');
+    document.getElementById('modalPlayerName').textContent = playerName;
+
+    // Display reflection
+    const reflection = playerReflections[playerName];
+    const reflectionEl = document.getElementById('modalReflection');
+    if (reflection && (reflection.thinking || reflection.impressions)) {
+        let text = '';
+        if (reflection.thinking) {
+            text += '💭 思考:\n' + reflection.thinking + '\n\n';
+        }
+        if (reflection.impressions) {
+            text += '👥 印象:\n' + reflection.impressions;
+        }
+        reflectionEl.textContent = text.trim();
+    } else {
+        reflectionEl.textContent = '暂无反思内容';
+    }
+
+    // Load experience from API
+    const expEl = document.getElementById('modalExperience');
+    expEl.textContent = '加载中...';
+
+    // Extract date from current log file (e.g., game_20251212_153557.log -> 20251212_153557)
+    if (currentLogFile) {
+        const dateMatch = currentLogFile.match(/(\d{8}_\d{6})/);
+        if (dateMatch) {
+            const dateSuffix = dateMatch[1];
+            loadPlayerExperience(dateSuffix, playerName, expEl);
+        } else {
+            expEl.textContent = '无法解析日期';
+        }
+    } else {
+        expEl.textContent = '未选择日志文件';
+    }
+
+    modal.classList.add('active');
+}
+
+async function loadPlayerExperience(dateSuffix, playerName, targetEl) {
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/experiences/${dateSuffix}/${playerName}`);
+        const data = await response.json();
+
+        if (data.error) {
+            targetEl.textContent = data.error;
+            return;
+        }
+
+        if (data.experiences && Object.keys(data.experiences).length > 0) {
+            // Format experiences nicely
+            let text = '';
+            for (const [key, value] of Object.entries(data.experiences)) {
+                text += `📌 ${key}:\n${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}\n\n`;
+            }
+            targetEl.textContent = text.trim() || '暂无经验数据';
+        } else {
+            targetEl.textContent = '暂无经验数据';
+        }
+    } catch (error) {
+        console.error('加载经验失败:', error);
+        targetEl.textContent = '加载失败';
+    }
+}
+
+function closePlayerModal() {
+    document.getElementById('playerModal').classList.remove('active');
+}
+
+// Close modal on background click
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('playerModal');
+    if (e.target === modal) {
+        closePlayerModal();
+    }
+});
 
 // ===== Utility =====
 function showError(message) {

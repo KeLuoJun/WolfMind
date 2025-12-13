@@ -28,8 +28,19 @@ class LogServerHandler(SimpleHTTPRequestHandler):
             self.send_log_content(filename)
             return
         
+        # API: 获取玩家经验文件
+        if parsed_path.path.startswith('/api/experiences/'):
+            # 格式: /api/experiences/{date_suffix}/{player_name}
+            parts = parsed_path.path.split('/api/experiences/')[1].split('/')
+            if len(parts) >= 2:
+                date_suffix = parts[0]
+                player_name = parts[1]
+                self.send_experience_content(date_suffix, player_name)
+            else:
+                self.send_error(400, 'Invalid request format')
+            return
+        
         # 默认处理静态文件
-        # print(f"Handling static file request: {self.path}") # Debug log
         super().do_GET()
     
     def log_message(self, format, *args):
@@ -86,6 +97,42 @@ class LogServerHandler(SimpleHTTPRequestHandler):
             self.wfile.write(content.encode('utf-8'))
         except Exception as e:
             self.send_error(500, f'Error reading log file: {str(e)}')
+    
+    def send_experience_content(self, date_suffix, player_name):
+        """发送玩家经验文件内容"""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        exp_dir = os.path.join(project_root, 'backend', 'data', 'experiences')
+        
+        # 查找匹配日期的经验文件
+        if not os.path.exists(exp_dir):
+            self.send_json_response({'error': 'Experiences directory not found', 'content': ''})
+            return
+        
+        # 经验文件名格式: experiences_{date}.json 或类似
+        found_file = None
+        for filename in os.listdir(exp_dir):
+            if date_suffix in filename and filename.endswith('.json'):
+                found_file = os.path.join(exp_dir, filename)
+                break
+        
+        if not found_file:
+            self.send_json_response({'error': 'Experience file not found', 'content': '', 'player': player_name})
+            return
+        
+        try:
+            with open(found_file, 'r', encoding='utf-8') as f:
+                all_experiences = json.load(f)
+            
+            # 提取特定玩家的经验
+            player_exp = all_experiences.get(player_name, {})
+            self.send_json_response({
+                'player': player_name,
+                'experiences': player_exp,
+                'file': os.path.basename(found_file)
+            })
+        except Exception as e:
+            self.send_json_response({'error': str(e), 'content': '', 'player': player_name})
     
     def send_json_response(self, data):
         """发送JSON响应"""
