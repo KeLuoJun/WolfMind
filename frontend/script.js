@@ -137,7 +137,8 @@ function startAutoRefresh() {
     stopAutoRefresh();
     autoRefreshInterval = setInterval(() => {
         if (currentLogFile) loadGameLog(currentLogFile);
-    }, 5000);
+    }, 3000); // 3 seconds
+    document.getElementById('autoRefresh').checked = true;
 }
 
 function stopAutoRefresh() {
@@ -145,6 +146,7 @@ function stopAutoRefresh() {
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
     }
+    document.getElementById('autoRefresh').checked = false;
 }
 
 // ===== Render UI =====
@@ -152,12 +154,41 @@ function renderUI(gameData) {
     renderGameStats(gameData);
     renderTable(gameData);
     renderFeed(gameData);
+
+    // Auto-manage refresh based on game status
+    const isGameOver = gameData.status.includes('结束') ||
+        gameData.status.includes('异常终止') ||
+        gameData.status.includes('胜利') ||
+        gameData.endTime;
+
+    if (isGameOver) {
+        stopAutoRefresh();
+    } else if (!autoRefreshInterval) {
+        // Game in progress, start auto-refresh if not already running
+        startAutoRefresh();
+    }
 }
 
 function renderGameStats(gameData) {
     document.getElementById('gameId').textContent = gameData.gameId || '-';
     document.getElementById('startTime').textContent = gameData.startTime || '-';
-    document.getElementById('gameStatus').textContent = gameData.status || '进行中';
+
+    // Determine display status
+    let displayStatus = gameData.status || '进行中';
+    const statusEl = document.getElementById('gameStatus');
+
+    if (displayStatus.includes('异常终止') || displayStatus.includes('正常结束') ||
+        displayStatus.includes('胜利') || gameData.endTime) {
+        displayStatus = '游戏结束';
+        statusEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        statusEl.style.color = '#fca5a5';
+    } else {
+        displayStatus = '进行中';
+        statusEl.style.background = 'rgba(34, 197, 94, 0.15)';
+        statusEl.style.color = '#86efac';
+    }
+
+    statusEl.textContent = displayStatus;
 }
 
 function renderTable(gameData) {
