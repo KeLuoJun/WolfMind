@@ -83,11 +83,11 @@ python server.py
 # 访问控制台
 # http://localhost:8080
 ```
-- 日志列表与内容自动刷新，可手动切换文件。
+日志列表与内容自动刷新，可手动切换文件。
 
-1) **直接运行后端（无前端界面）**
+2) **直接运行后端（无前端界面）**
 
-- **配置环境变量**
+**配置环境变量**
 
 ```bash
 # Windows
@@ -110,7 +110,7 @@ DASHSCOPE_API_KEY=your_api_key_here
 ENABLE_STUDIO=false
 ```
 
-- **运行游戏**
+**运行游戏**
 ```bash
 cd backend
 python main.py
