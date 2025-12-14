@@ -53,7 +53,7 @@ body.day-theme {
 
 /* Day Theme - Left Panel Table Background */
 body.day-theme .panel-table {
-    background: radial-gradient(circle at 50% 50%, #c7d2e0 0%, #e8eef5 70%);
+    background: radial-gradient(circle at 50% 50%, rgba(199, 210, 224, 0.7) 0%, rgba(232, 238, 245, 0.75) 70%);
 }
 
 /* Day Theme - Player Cards */
@@ -235,76 +235,116 @@ body {
     background: var(--bg-dark);
     color: var(--text);
     overflow: hidden;
-    transition: background 0.8s ease, color 0.8s ease;
+    transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Day/Night Theme Background ===== */
-.theme-bg {
+/* Smooth transitions for all theme-affected elements */
+.app-header,
+.panel-table,
+.panel-feed,
+.game-stats,
+.table-center,
+.player-card,
+.player-avatar,
+.player-role,
+.action-card,
+.feed-header,
+.modal-content,
+.modal-header,
+.select-log {
+    transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+                color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Day/Night Theme Icon (Global Page Center) ===== */
+.theme-bg-global {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 9999;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 0;
     pointer-events: none;
 }
 
-.celestial-body {
-    width: 60px;
-    height: 60px;
+.celestial-icon {
+    width: 500px;
+    height: 500px;
     position: relative;
-    transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.celestial-body .sun,
-.celestial-body .moon {
+.sun-icon,
+.moon-icon {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 500px;
+    height: 500px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 40px;
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+    font-size: 380px;
+    transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.celestial-body .sun {
+.sun-icon {
     opacity: 0;
-    transform: rotate(-180deg) scale(0.5);
+    transform: rotate(-180deg) scale(0.3);
+    filter: drop-shadow(0 0 100px rgba(251, 191, 36, 0.4));
 }
 
-.celestial-body .moon {
-    opacity: 1;
+.moon-icon {
+    opacity: 0.6;
     transform: rotate(0deg) scale(1);
+    filter: drop-shadow(0 0 100px rgba(148, 163, 184, 0.5));
 }
 
-/* Day Theme - Show Sun */
-body.day-theme .celestial-body .sun {
-    opacity: 1;
-    transform: rotate(0deg) scale(1);
-    filter: drop-shadow(0 4px 30px rgba(251, 191, 36, 0.6));
+/* Day Theme - Show Sun with rotation */
+body.day-theme .sun-icon {
+    opacity: 0.65;
+    transform: rotate(360deg) scale(1);
+    filter: drop-shadow(0 0 150px rgba(251, 191, 36, 0.6));
 }
 
-body.day-theme .celestial-body .moon {
+body.day-theme .moon-icon {
     opacity: 0;
-    transform: rotate(180deg) scale(0.5);
+    transform: rotate(180deg) scale(0.3);
 }
 
-/* Gentle floating animation */
-@keyframes float {
-
-    0%,
-    100% {
-        transform: translateY(0);
+/* Gentle pulse animation for sun */
+@keyframes sun-pulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 120px rgba(251, 191, 36, 0.5));
     }
-
     50% {
-        transform: translateY(-8px);
+        filter: drop-shadow(0 0 180px rgba(251, 191, 36, 0.7));
     }
 }
 
-.celestial-body .sun,
-.celestial-body .moon {
-    animation: float 4s ease-in-out infinite;
+/* Gentle glow animation for moon */
+@keyframes moon-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 80px rgba(148, 163, 184, 0.4));
+    }
+    50% {
+        filter: drop-shadow(0 0 120px rgba(148, 163, 184, 0.6));
+    }
+}
+
+.sun-icon {
+    animation: sun-pulse 6s ease-in-out infinite;
+}
+
+.moon-icon {
+    animation: moon-glow 5s ease-in-out infinite;
+}
+
+body.day-theme .sun-icon {
+    animation: sun-pulse 4s ease-in-out infinite;
 }
 
 /* ===== App Layout ===== */
@@ -312,6 +352,8 @@ body.day-theme .celestial-body .moon {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    position: relative;
+    z-index: 1;
 }
 
 /* ===== Header ===== */
@@ -321,9 +363,16 @@ body.day-theme .celestial-body .moon {
     justify-content: space-between;
     padding: 0 24px;
     height: 56px;
-    background: var(--bg-panel);
+    background: rgba(18, 21, 28, 0.75);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+}
+
+body.day-theme .app-header {
+    background: rgba(255, 255, 255, 0.75);
 }
 
 .header-left {
@@ -426,7 +475,7 @@ body.day-theme .celestial-body .moon {
 /* ===== Left Panel: Table ===== */
 .panel-table {
     width: 40%;
-    background: radial-gradient(circle at 50% 50%, #1a1f2e 0%, var(--bg-dark) 70%);
+    background: radial-gradient(circle at 50% 50%, rgba(26, 31, 46, 0.7) 0%, rgba(10, 12, 16, 0.75) 70%);
     position: relative;
     flex-shrink: 0;
 }
@@ -438,6 +487,8 @@ body.day-theme .celestial-body .moon {
     padding: 16px;
     background: rgba(0, 0, 0, 0.3);
     border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 5;
 }
 
 .stat {
@@ -475,6 +526,8 @@ body.day-theme .celestial-body .moon {
     align-items: center;
     padding: 24px;
     overflow: hidden;
+    position: relative;
+    z-index: 5;
 }
 
 .game-table {
@@ -787,9 +840,14 @@ body.day-theme .celestial-body .moon {
 /* ===== Right Panel: Feed ===== */
 .panel-feed {
     width: 60%;
-    background: var(--bg-panel);
+    background: rgba(18, 21, 28, 0.55);
     border-left: 1px solid var(--border);
     flex-shrink: 0;
+    backdrop-filter: blur(8px);
+}
+
+body.day-theme .panel-feed {
+    background: rgba(255, 255, 255, 0.55);
 }
 
 .feed-header {
