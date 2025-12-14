@@ -8,6 +8,7 @@
 }
 
 :root {
+    /* Night Theme (Default) */
     --bg-dark: #0a0c10;
     --bg-panel: #12151c;
     --bg-card: #1a1f2e;
@@ -38,6 +39,195 @@
     --mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
+/* Day Theme */
+body.day-theme {
+    --bg-dark: #e8eef5;
+    --bg-panel: #ffffff;
+    --bg-card: #f1f5f9;
+    --bg-hover: #e2e8f0;
+    --border: rgba(0, 0, 0, 0.12);
+    --text: #1e293b;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+}
+
+/* Day Theme - Left Panel Table Background */
+body.day-theme .panel-table {
+    background: radial-gradient(circle at 50% 50%, #c7d2e0 0%, #e8eef5 70%);
+}
+
+/* Day Theme - Player Cards */
+body.day-theme .player-card {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.98));
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+body.day-theme .player-card:hover {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+body.day-theme .player-name {
+    color: #1e293b;
+}
+
+body.day-theme .player-avatar {
+    background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+    border-color: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+/* Day Theme - Role Colors */
+body.day-theme .role-werewolf .player-avatar {
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+body.day-theme .role-villager .player-avatar {
+    border-color: #16a34a;
+    color: #16a34a;
+}
+
+body.day-theme .role-seer .player-avatar {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+body.day-theme .role-witch .player-avatar {
+    border-color: #9333ea;
+    color: #9333ea;
+}
+
+body.day-theme .role-hunter .player-avatar {
+    border-color: #ea580c;
+    color: #ea580c;
+}
+
+body.day-theme .role-werewolf .player-role {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.08));
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+body.day-theme .role-villager .player-role {
+    background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(22, 163, 74, 0.08));
+    color: #16a34a;
+    border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+body.day-theme .role-seer .player-role {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.08));
+    color: #2563eb;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+body.day-theme .role-witch .player-role {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.15), rgba(147, 51, 234, 0.08));
+    color: #9333ea;
+    border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+body.day-theme .role-hunter .player-role {
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.15), rgba(234, 88, 12, 0.08));
+    color: #ea580c;
+    border: 1px solid rgba(234, 88, 12, 0.3);
+}
+
+/* Day Theme - Table Center */
+body.day-theme .table-center {
+    background: radial-gradient(circle, #d1d9e6 0%, #c7d2e0 100%);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.1), inset 0 0 30px rgba(255, 255, 255, 0.5);
+}
+
+body.day-theme .table-center::before {
+    border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+body.day-theme .table-logo {
+    opacity: 0.15;
+}
+
+/* Day Theme - Game Stats */
+body.day-theme .game-stats {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+body.day-theme .stat-label {
+    color: #64748b;
+}
+
+body.day-theme .stat-value {
+    color: #1e293b;
+}
+
+/* Day Theme - Feed Panel */
+body.day-theme .round-title {
+    color: #1e293b;
+    background: linear-gradient(90deg, rgba(124, 58, 237, 0.2), transparent);
+}
+
+body.day-theme .action-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.day-theme .action-card:hover {
+    background: #f8fafc;
+}
+
+body.day-theme .action-player {
+    color: #7c3aed;
+}
+
+body.day-theme .action-time {
+    color: #64748b;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body.day-theme .action-thought {
+    color: #a16207;
+    background: rgba(253, 224, 71, 0.2);
+    border-left-color: #eab308;
+}
+
+body.day-theme .action-behavior {
+    color: #0369a1;
+    background: rgba(125, 211, 252, 0.2);
+    border-left-color: #0ea5e9;
+}
+
+body.day-theme .action-speech {
+    color: #166534;
+    background: rgba(167, 243, 208, 0.2);
+    border-left-color: #22c55e;
+}
+
+body.day-theme .system-msg {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    color: #475569;
+}
+
+body.day-theme .system-msg.death {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+body.day-theme .system-msg.vote {
+    background: rgba(124, 58, 237, 0.1);
+    color: #7c3aed;
+}
+
+body.day-theme .phase-label {
+    color: #1e293b;
+}
+
+body.day-theme .phase-block {
+    border-left-color: rgba(0, 0, 0, 0.1);
+}
+
 html,
 body {
     height: 100%;
@@ -45,6 +235,76 @@ body {
     background: var(--bg-dark);
     color: var(--text);
     overflow: hidden;
+    transition: background 0.8s ease, color 0.8s ease;
+}
+
+/* ===== Day/Night Theme Background ===== */
+.theme-bg {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.celestial-body {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.celestial-body .sun,
+.celestial-body .moon {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+}
+
+.celestial-body .sun {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+}
+
+.celestial-body .moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Day Theme - Show Sun */
+body.day-theme .celestial-body .sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+    filter: drop-shadow(0 4px 30px rgba(251, 191, 36, 0.6));
+}
+
+body.day-theme .celestial-body .moon {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.5);
+}
+
+/* Gentle floating animation */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.celestial-body .sun,
+.celestial-body .moon {
+    animation: float 4s ease-in-out infinite;
 }
 
 /* ===== App Layout ===== */

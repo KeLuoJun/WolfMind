@@ -151,12 +151,36 @@ function stopAutoRefresh() {
     document.getElementById('autoRefresh').checked = false;
 }
 
+// ===== Theme Switching =====
+function updateTheme(gameData) {
+    // Get the current phase from the latest round
+    let isDay = false;
+
+    if (gameData.rounds && gameData.rounds.length > 0) {
+        const lastRound = gameData.rounds[gameData.rounds.length - 1];
+        if (lastRound.phases && lastRound.phases.length > 0) {
+            const lastPhase = lastRound.phases[lastRound.phases.length - 1];
+            isDay = lastPhase.type === 'day';
+        }
+    }
+
+    // Apply theme class
+    if (isDay) {
+        document.body.classList.add('day-theme');
+    } else {
+        document.body.classList.remove('day-theme');
+    }
+}
+
 // ===== Render UI =====
 function renderUI(gameData) {
     currentGameData = gameData; // Store for modal access
     renderGameStats(gameData);
     renderTable(gameData);
     renderFeed(gameData);
+
+    // Update theme based on current phase
+    updateTheme(gameData);
 
     // Auto-manage refresh based on game status
     const isGameOver = gameData.status.includes('结束') ||

@@ -4,18 +4,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>狼人杀游戏日志查看器</title>
+    <title>WolfMind</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+    <!-- Day/Night Theme Background -->
+    <div class="theme-bg" id="themeBg">
+        <div class="celestial-body" id="celestialBody">
+            <div class="sun">☀️</div>
+            <div class="moon">🌙</div>
+        </div>
+    </div>
+
     <div class="app">
         <!-- Sidebar Header -->
         <header class="app-header">
             <div class="header-left">
                 <span class="logo">🐺</span>
-                <h1>狼人杀日志查看器</h1>
+                <h1>WolfMind</h1>
             </div>
             <div class="header-controls">
                 <select id="logSelector" class="select-log">

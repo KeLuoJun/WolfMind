@@ -150,7 +150,7 @@ def run_server(port=8080):
     """运行服务器"""
     server_address = ('', port)
     httpd = HTTPServer(server_address, LogServerHandler)
-    print(f"🚀 狼人杀日志查看器服务器启动成功！")
+    print(f"🚀 WolfMind服务器启动成功！")
     print(f"📍 访问地址: http://localhost:{port}")
     print(f"📂 日志目录: backend/data/game_logs")
     print(f"⏹️  按 Ctrl+C 停止服务器\n")
