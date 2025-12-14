@@ -26,6 +26,8 @@
                 <h1>WolfMind</h1>
             </div>
             <div class="header-controls">
+                <button id="gameControlBtn" class="btn btn-success">▶️ 启动游戏</button>
+                <button id="settingsBtn" class="btn btn-secondary">⚙️ 设置</button>
                 <select id="logSelector" class="select-log">
                     <option value="">加载中...</option>
                 </select>
@@ -73,6 +75,81 @@
                 </div>
             </aside>
         </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>⚙️ 游戏设置</h3>
+                <button class="modal-close" onclick="closeSettingsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>🤖 模型配置</h4>
+                    <div class="form-group">
+                        <label>模型提供商</label>
+                        <select id="modelProvider" class="form-select">
+                            <option value="dashscope">DashScope (通义千问)</option>
+                            <option value="openai">OpenAI 兼容</option>
+                            <option value="ollama">Ollama (本地)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="dashscopeConfig" class="provider-config">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="dashscopeApiKey" class="form-input" placeholder="sk-xxx">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="dashscopeModel" class="form-input" placeholder="qwen2.5-32b-instruct">
+                        </div>
+                    </div>
+                    
+                    <div id="openaiConfig" class="provider-config" style="display:none;">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="openaiApiKey" class="form-input" placeholder="sk-xxx">
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL</label>
+                            <input type="text" id="openaiBaseUrl" class="form-input" placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="openaiModel" class="form-input" placeholder="gpt-3.5-turbo">
+                        </div>
+                    </div>
+                    
+                    <div id="ollamaConfig" class="provider-config" style="display:none;">
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="ollamaModel" class="form-input" placeholder="qwen2.5:1.5b">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>🎮 游戏参数</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>最大游戏轮数</label>
+                            <input type="number" id="maxGameRound" class="form-input" value="30" min="1" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label>狼人讨论轮数</label>
+                            <input type="number" id="maxDiscussionRound" class="form-input" value="3" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="saveSettingsBtn" class="btn btn-primary">💾 保存配置</button>
+                    <button class="btn btn-secondary" onclick="closeSettingsModal()">取消</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Player Detail Modal -->

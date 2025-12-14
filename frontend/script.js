@@ -6,6 +6,10 @@ let showAllHistory = false;
 let apiBaseUrl = '';
 let playerReflections = {}; // Store player reflections for modal
 let currentGameData = null; // Store current game data
+let gameStatusInterval = null; // Game status check interval
+let isGameRunning = false; // Track game running state
+let gameStartTime = null; // Track when game was started to filter old logs
+let waitingForNewLog = false; // Flag to indicate waiting for new log
 
 // ===== Role Mapping =====
 const roleMap = {
@@ -31,6 +35,9 @@ const actionIcons = {
 document.addEventListener('DOMContentLoaded', () => {
     loadLogFiles();
     setupEventListeners();
+    checkGameStatus();
+    // Check game status every 3 seconds
+    gameStatusInterval = setInterval(checkGameStatus, 3000);
 });
 
 function setupEventListeners() {
@@ -66,6 +73,20 @@ function setupEventListeners() {
             loadGameLog(currentLogFile);
         }
     });
+
+    // Settings button
+    document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
+    
+    // Save settings button
+    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+    
+    // Model provider change
+    document.getElementById('modelProvider').addEventListener('change', (e) => {
+        updateProviderConfig(e.target.value);
+    });
+    
+    // Game control button
+    document.getElementById('gameControlBtn').addEventListener('click', toggleGame);
 }
 
 // ===== API Functions =====
@@ -92,16 +113,35 @@ async function loadLogFiles() {
             return;
         }
 
-        selector.innerHTML = files.map(f =>
+        // If waiting for new log, filter to only show logs newer than game start time
+        let filteredFiles = files;
+        if (waitingForNewLog && gameStartTime) {
+            filteredFiles = files.filter(f => f.timestamp > gameStartTime - 5); // 5 second buffer
+            
+            if (filteredFiles.length === 0) {
+                // No new log yet, keep waiting
+                console.log('Waiting for new log file...');
+                return;
+            } else {
+                // Found new log, stop waiting
+                waitingForNewLog = false;
+                gameStartTime = null;
+            }
+        }
+
+        selector.innerHTML = filteredFiles.map(f =>
             `<option value="${f.name}">${f.name} (${f.time})</option>`
         ).join('');
 
-        currentLogFile = files[0].name;
+        const targetFile = filteredFiles[0].name;
+        currentLogFile = targetFile;
         selector.value = currentLogFile;
         loadGameLog(currentLogFile);
     } catch (error) {
         console.error('加载失败:', error);
-        showError('无法加载日志列表，请确保 server.py 正在运行');
+        if (!waitingForNewLog) {
+            showError('无法加载日志列表，请确保 server.py 正在运行');
+        }
     }
 }
 
@@ -710,4 +750,212 @@ document.addEventListener('click', (e) => {
 // ===== Utility =====
 function showError(message) {
     document.getElementById('roundsContainer').innerHTML = `<div class="error">❌ ${message}</div>`;
+}
+
+
+// ===== Settings Functions =====
+async function openSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    modal.classList.add('active');
+    
+    // Load current config
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/config`);
+        const config = await response.json();
+        
+        // Populate form fields
+        document.getElementById('modelProvider').value = config.MODEL_PROVIDER || 'dashscope';
+        document.getElementById('dashscopeApiKey').value = config.DASHSCOPE_API_KEY || '';
+        document.getElementById('dashscopeModel').value = config.DASHSCOPE_MODEL_NAME || 'qwen2.5-32b-instruct';
+        document.getElementById('openaiApiKey').value = config.OPENAI_API_KEY || '';
+        document.getElementById('openaiBaseUrl').value = config.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+        document.getElementById('openaiModel').value = config.OPENAI_MODEL_NAME || 'gpt-3.5-turbo';
+        document.getElementById('ollamaModel').value = config.OLLAMA_MODEL_NAME || 'qwen2.5:1.5b';
+        document.getElementById('maxGameRound').value = config.MAX_GAME_ROUND || '30';
+        document.getElementById('maxDiscussionRound').value = config.MAX_DISCUSSION_ROUND || '3';
+        
+        // Show correct provider config
+        updateProviderConfig(config.MODEL_PROVIDER || 'dashscope');
+    } catch (error) {
+        console.error('Failed to load config:', error);
+    }
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('active');
+}
+
+function updateProviderConfig(provider) {
+    // Hide all provider configs
+    document.getElementById('dashscopeConfig').style.display = 'none';
+    document.getElementById('openaiConfig').style.display = 'none';
+    document.getElementById('ollamaConfig').style.display = 'none';
+    
+    // Show selected provider config
+    if (provider === 'dashscope') {
+        document.getElementById('dashscopeConfig').style.display = 'block';
+    } else if (provider === 'openai') {
+        document.getElementById('openaiConfig').style.display = 'block';
+    } else if (provider === 'ollama') {
+        document.getElementById('ollamaConfig').style.display = 'block';
+    }
+}
+
+async function saveSettings() {
+    const config = {
+        MODEL_PROVIDER: document.getElementById('modelProvider').value,
+        DASHSCOPE_API_KEY: document.getElementById('dashscopeApiKey').value,
+        DASHSCOPE_MODEL_NAME: document.getElementById('dashscopeModel').value,
+        OPENAI_API_KEY: document.getElementById('openaiApiKey').value,
+        OPENAI_BASE_URL: document.getElementById('openaiBaseUrl').value,
+        OPENAI_MODEL_NAME: document.getElementById('openaiModel').value,
+        OLLAMA_MODEL_NAME: document.getElementById('ollamaModel').value,
+        MAX_GAME_ROUND: document.getElementById('maxGameRound').value,
+        MAX_DISCUSSION_ROUND: document.getElementById('maxDiscussionRound').value,
+    };
+    
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ 配置已保存');
+            closeSettingsModal();
+        } else {
+            alert('❌ ' + result.message);
+        }
+    } catch (error) {
+        alert('❌ 保存失败: ' + error.message);
+    }
+}
+
+// ===== Game Control Functions =====
+async function checkGameStatus() {
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/game/status`);
+        const status = await response.json();
+        
+        const btn = document.getElementById('gameControlBtn');
+        isGameRunning = status.running;
+        
+        if (status.running) {
+            btn.textContent = '⏹️ 停止游戏';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-danger');
+        } else {
+            btn.textContent = '▶️ 启动游戏';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+        }
+    } catch (error) {
+        console.error('Failed to check game status:', error);
+    }
+}
+
+async function toggleGame() {
+    const btn = document.getElementById('gameControlBtn');
+    btn.disabled = true;
+    
+    try {
+        if (isGameRunning) {
+            // Stop game
+            const response = await fetch(`${apiBaseUrl}/api/game/stop`, { method: 'POST' });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ ' + result.message);
+            } else {
+                alert('❌ ' + result.message);
+            }
+        } else {
+            // Start game
+            const response = await fetch(`${apiBaseUrl}/api/game/start`, { method: 'POST' });
+            const result = await response.json();
+            
+            if (result.success) {
+                // Clear current display and switch to night mode
+                prepareForNewGame();
+                
+                // Start auto-refresh to see game progress
+                startAutoRefresh();
+                
+                // Wait a moment then refresh log list to get the new log file
+                setTimeout(async () => {
+                    await loadLogFiles();
+                }, 3000);
+                
+                // Refresh again after more time
+                setTimeout(async () => {
+                    await loadLogFiles();
+                }, 6000);
+                
+                setTimeout(async () => {
+                    await loadLogFiles();
+                }, 10000);
+            } else {
+                alert('❌ ' + result.message);
+            }
+        }
+        
+        // Update status
+        await checkGameStatus();
+    } catch (error) {
+        alert('❌ 操作失败: ' + error.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Close settings modal on background click
+document.addEventListener('click', (e) => {
+    const settingsModal = document.getElementById('settingsModal');
+    if (e.target === settingsModal) {
+        closeSettingsModal();
+    }
+});
+
+
+// ===== Prepare for New Game =====
+function prepareForNewGame() {
+    // Record the time when game started - only load logs newer than this
+    gameStartTime = Date.now() / 1000; // Convert to seconds (Unix timestamp)
+    waitingForNewLog = true;
+    
+    // Switch to night theme
+    document.body.classList.remove('day-theme');
+    
+    // Clear current log file selection
+    currentLogFile = null;
+    lastLogHash = '';
+    
+    // Reset game stats
+    document.getElementById('gameId').textContent = '新游戏启动中...';
+    document.getElementById('startTime').textContent = '-';
+    document.getElementById('gameStatus').textContent = '等待中';
+    document.getElementById('gameStatus').style.background = 'rgba(245, 158, 11, 0.15)';
+    document.getElementById('gameStatus').style.color = '#fbbf24';
+    
+    // Clear players grid - show loading state
+    const playersGrid = document.getElementById('playersGrid');
+    playersGrid.innerHTML = `
+        <div class="table-center">
+            <span class="table-logo">🐺</span>
+        </div>
+    `;
+    
+    // Clear rounds container - show waiting message
+    document.getElementById('roundsContainer').innerHTML = `
+        <div class="loading-game">
+            <div class="loading-spinner">🎮</div>
+            <p>游戏正在启动中...</p>
+            <p class="loading-hint">请稍候，日志将在几秒后自动加载</p>
+        </div>
+    `;
+    
+    // Reset log selector
+    document.getElementById('logSelector').innerHTML = '<option value="">等待新日志...</option>';
 }

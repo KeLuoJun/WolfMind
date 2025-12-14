@@ -4,9 +4,15 @@
 """
 import os
 import json
+import subprocess
+import signal
+import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
+
+# 全局变量存储游戏进程
+game_process = None
 
 class LogServerHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -40,12 +46,55 @@ class LogServerHandler(SimpleHTTPRequestHandler):
                 self.send_error(400, 'Invalid request format')
             return
         
+        # API: 获取游戏配置
+        if parsed_path.path == '/api/config':
+            self.send_json_response(self.get_game_config())
+            return
+        
+        # API: 获取游戏状态
+        if parsed_path.path == '/api/game/status':
+            self.send_json_response(self.get_game_status())
+            return
+        
         # 默认处理静态文件
         super().do_GET()
     
-    def log_message(self, format, *args):
-        """覆盖默认日志方法以打印详细信息"""
-        print(f"[{self.log_date_time_string()}] {format % args}")
+    def do_POST(self):
+        """处理POST请求"""
+        try:
+            parsed_path = urlparse(self.path)
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else '{}'
+            
+            try:
+                data = json.loads(post_data) if post_data else {}
+            except json.JSONDecodeError:
+                data = {}
+            
+            # API: 保存游戏配置
+            if parsed_path.path == '/api/config':
+                result = self.save_game_config(data)
+                self.send_json_response(result)
+                return
+            
+            # API: 启动游戏
+            if parsed_path.path == '/api/game/start':
+                result = self.start_game()
+                self.send_json_response(result)
+                return
+            
+            # API: 停止游戏
+            if parsed_path.path == '/api/game/stop':
+                result = self.stop_game()
+                self.send_json_response(result)
+                return
+            
+            self.send_json_response({'success': False, 'message': 'API not found'})
+        except Exception as e:
+            print(f"POST Error: {e}")
+            self.send_json_response({'success': False, 'message': str(e)})
+    
+
 
     def get_log_files(self):
         """获取所有日志文件列表"""
@@ -142,9 +191,187 @@ class LogServerHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
     
+    def get_game_config(self):
+        """读取游戏配置"""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        env_path = os.path.join(project_root, 'backend', '.env')
+        
+        config = {
+            'MODEL_PROVIDER': 'dashscope',
+            'DASHSCOPE_API_KEY': '',
+            'DASHSCOPE_MODEL_NAME': 'qwen2.5-32b-instruct',
+            'OPENAI_API_KEY': '',
+            'OPENAI_BASE_URL': 'https://api.openai.com/v1',
+            'OPENAI_MODEL_NAME': 'gpt-3.5-turbo',
+            'OLLAMA_MODEL_NAME': 'qwen2.5:1.5b',
+            'MAX_GAME_ROUND': '30',
+            'MAX_DISCUSSION_ROUND': '3',
+            'ENABLE_STUDIO': 'false',
+        }
+        
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if '=' in line:
+                            key, value = line.split('=', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            if key in config:
+                                config[key] = value
+            except Exception as e:
+                print(f"Error reading config: {e}")
+        
+        return config
+    
+    def save_game_config(self, data):
+        """保存游戏配置到.env文件"""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        env_path = os.path.join(project_root, 'backend', '.env')
+        
+        # 读取现有配置文件内容
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        
+        # 更新配置值
+        updated_keys = set()
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith('#') and '=' in stripped:
+                key = stripped.split('=', 1)[0].strip()
+                if key in data:
+                    new_lines.append(f"{key}={data[key]}\n")
+                    updated_keys.add(key)
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+        
+        # 添加新的配置项
+        for key, value in data.items():
+            if key not in updated_keys:
+                new_lines.append(f"{key}={value}\n")
+        
+        try:
+            with open(env_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+            return {'success': True, 'message': '配置已保存'}
+        except Exception as e:
+            return {'success': False, 'message': f'保存失败: {str(e)}'}
+    
+    def get_game_status(self):
+        """获取游戏运行状态"""
+        global game_process
+        if game_process is not None and game_process.poll() is None:
+            return {'running': True, 'pid': game_process.pid}
+        return {'running': False, 'pid': None}
+    
+    def start_game(self):
+        """启动游戏"""
+        global game_process
+        
+        # 检查是否已有游戏在运行
+        if game_process is not None and game_process.poll() is None:
+            return {'success': False, 'message': '游戏已在运行中', 'pid': game_process.pid}
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        backend_dir = os.path.join(project_root, 'backend')
+        main_py = os.path.join(backend_dir, 'main.py')
+        
+        if not os.path.exists(main_py):
+            return {'success': False, 'message': f'main.py 不存在'}
+        
+        try:
+            print(f"\n{'='*50}")
+            print(f"🎮 启动狼人杀游戏...")
+            print(f"{'='*50}\n")
+            
+            # 启动游戏进程，输出到控制台（与直接运行 main.py 一样）
+            if sys.platform == 'win32':
+                game_process = subprocess.Popen(
+                    [sys.executable, main_py],
+                    cwd=backend_dir,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                )
+            else:
+                game_process = subprocess.Popen(
+                    [sys.executable, main_py],
+                    cwd=backend_dir,
+                    start_new_session=True
+                )
+            
+            return {'success': True, 'message': '游戏已启动，请等待日志生成...', 'pid': game_process.pid}
+        except Exception as e:
+            return {'success': False, 'message': f'启动失败: {str(e)}'}
+    
+    def stop_game(self):
+        """停止游戏"""
+        global game_process
+        
+        if game_process is None or game_process.poll() is not None:
+            return {'success': False, 'message': '没有正在运行的游戏'}
+        
+        try:
+            # 发送终止信号
+            if sys.platform == 'win32':
+                game_process.terminate()
+            else:
+                os.kill(game_process.pid, signal.SIGTERM)
+            
+            # 等待进程结束
+            game_process.wait(timeout=5)
+            game_process = None
+            return {'success': True, 'message': '游戏已停止'}
+        except subprocess.TimeoutExpired:
+            game_process.kill()
+            game_process = None
+            return {'success': True, 'message': '游戏已强制停止'}
+        except Exception as e:
+            return {'success': False, 'message': f'停止失败: {str(e)}'}
+    
+    def do_OPTIONS(self):
+        """处理CORS预检请求"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
     def log_message(self, format, *args):
         """自定义日志格式"""
         print(f"[{self.log_date_time_string()}] {format % args}")
+
+def cleanup_game_process():
+    """清理游戏进程"""
+    global game_process
+    if game_process is not None:
+        try:
+            if game_process.poll() is None:  # 进程仍在运行
+                print("\n🛑 正在终止游戏进程...")
+                if sys.platform == 'win32':
+                    game_process.terminate()
+                else:
+                    os.kill(game_process.pid, signal.SIGTERM)
+                
+                try:
+                    game_process.wait(timeout=3)
+                    print("✓ 游戏进程已正常终止")
+                except subprocess.TimeoutExpired:
+                    game_process.kill()
+                    print("✓ 游戏进程已强制终止")
+        except Exception as e:
+            print(f"⚠ 终止游戏进程时出错: {e}")
+        finally:
+            game_process = None
 
 def run_server(port=8080):
     """运行服务器"""
@@ -158,8 +385,12 @@ def run_server(port=8080):
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n\n👋 服务器已停止")
+        print("\n\n⏹️ 正在关闭服务器...")
+        # 先终止游戏进程
+        cleanup_game_process()
+        # 再关闭服务器
         httpd.shutdown()
+        print("👋 服务器已停止")
 
 if __name__ == '__main__':
     run_server()
