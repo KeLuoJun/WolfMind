@@ -767,20 +767,46 @@ body.day-theme .app-header {
     background: #ffffff;
     color: #1f2937;
     border-radius: 14px;
-    padding: 10px 14px;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
-    min-width: 120px;
-    max-width: 200px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    min-width: 180px;
+    max-width: 280px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
     z-index: 25;
-    pointer-events: none;
+    pointer-events: auto;
     animation: bubble-pop 0.3s ease-out;
+    border: 2px solid #22c55e;
+    /* IMPORTANT: overflow must be visible for tail pseudo-elements */
+    overflow: visible;
+}
+
+/* Inner content wrapper for scrolling */
+.speech-bubble-content {
+    padding: 12px 14px;
+    max-height: 145px;
+    overflow-y: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    border: 2px solid #22c55e;
     white-space: normal;
     text-align: left;
+}
+
+/* Bubble scrollbar */
+.speech-bubble-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.speech-bubble-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.speech-bubble-content::-webkit-scrollbar-thumb {
+    background: rgba(34, 197, 94, 0.4);
+    border-radius: 2px;
+}
+
+.speech-bubble-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 197, 94, 0.6);
 }
 
 @keyframes bubble-pop {

@@ -313,11 +313,8 @@ function renderTable(gameData) {
             if (bubbleContent) {
                 const bubble = document.createElement('div');
                 
-                // Truncate text - keep it short and readable
-                const maxLen = 35;
-                const displayText = bubbleContent.length > maxLen 
-                    ? bubbleContent.substring(0, maxLen) + '...' 
-                    : bubbleContent;
+                // Show full text with scrolling support
+                const displayText = bubbleContent;
                 
                 const cosAngle = Math.cos(angle);
                 const sinAngle = Math.sin(angle);
@@ -328,13 +325,20 @@ function renderTable(gameData) {
                 let positionStyle = {};
                 
                 if (sinAngle < -0.5) {
-                    // Top area - bubble above, tail points down
-                    tailDirection = 'tail-bottom';
-                    positionStyle = { bottom: 'calc(100% + 15px)', left: '50%', transform: 'translateX(-50%)' };
+                    // Top area - bubble to right side to avoid being cut off by header
+                    tailDirection = 'tail-left';
+                    positionStyle = { left: 'calc(100% + 15px)', top: '0', transform: 'translateY(0)' };
                 } else if (sinAngle > 0.5) {
-                    // Bottom area - bubble below, tail points up
-                    tailDirection = 'tail-top';
-                    positionStyle = { top: 'calc(100% + 15px)', left: '50%', transform: 'translateX(-50%)' };
+                    // Bottom area - bubble to left or right side based on position
+                    if (cosAngle < 0) {
+                        // Bottom-left player (like Player6) - bubble to left
+                        tailDirection = 'tail-right';
+                        positionStyle = { right: 'calc(100% + 15px)', bottom: '0', transform: 'translateY(0)' };
+                    } else {
+                        // Bottom-right player (like Player8) - bubble to right
+                        tailDirection = 'tail-left';
+                        positionStyle = { left: 'calc(100% + 15px)', bottom: '0', transform: 'translateY(0)' };
+                    }
                 } else if (cosAngle < -0.3) {
                     // Left area - bubble to left, tail points right
                     tailDirection = 'tail-right';
@@ -346,7 +350,12 @@ function renderTable(gameData) {
                 }
                 
                 bubble.className = `speech-bubble ${tailDirection}`;
-                bubble.textContent = displayText;
+                
+                // Create inner content wrapper for scrolling (keeps overflow:visible on outer for tail)
+                const bubbleInner = document.createElement('div');
+                bubbleInner.className = 'speech-bubble-content';
+                bubbleInner.textContent = displayText;
+                bubble.appendChild(bubbleInner);
                 
                 // Apply position styles
                 Object.keys(positionStyle).forEach(key => {
