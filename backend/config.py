@@ -9,14 +9,15 @@ class Config:
 
     def __init__(self):
         """初始化配置，从 .env 文件加载"""
-        # 将所有相对路径锚定到 backend 目录，避免在仓库根目录下意外创建文件夹
-        self.base_dir = Path(__file__).resolve().parent
+        # 将路径锚定到仓库根目录，避免在 backend 下产生散落文件
+        self.backend_dir = Path(__file__).resolve().parent
+        self.root_dir = self.backend_dir.parent
         self._env: dict[str, str] = {}
         self._load_env()
 
     def _load_env(self):
         """加载 .env 文件"""
-        env_path = self.base_dir / ".env"
+        env_path = self.backend_dir / ".env"
         if env_path.exists():
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -113,15 +114,26 @@ class Config:
     def experience_dir(self) -> str:
         """经验存档保存目录。"""
         raw_path = self._get("EXPERIENCE_DIR", "data/experiences")
-        path = Path(raw_path)
-        if not path.is_absolute():
-            path = self.base_dir / path
+        path = self._resolve_path(raw_path)
         return str(path)
 
     @property
     def experience_id(self) -> str:
         """经验存档文件名前缀。"""
         return self._get("EXPERIENCE_ID", "players_experience")
+
+    @property
+    def log_dir(self) -> str:
+        """游戏日志目录。"""
+        raw_path = self._get("LOG_DIR", "data/game_logs")
+        return str(self._resolve_path(raw_path))
+
+    def _resolve_path(self, raw_path: str) -> Path:
+        """将相对路径解析为仓库根目录下的绝对路径。"""
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = self.root_dir / path
+        return path
 
     # ==================== 验证方法 ====================
 

@@ -141,11 +141,11 @@ werewolf-game/
 │   ├── prompts/              # 提示词
 │   │   ├── game_prompts.py   # 游戏提示词
 │   │   └── role_prompts.py   # 角色提示词
-│   ├── data/                 # 数据目录
-│   │   ├── experiences/      # 玩家经验存档
-│   │   └── game_logs/        # 游戏日志
 │   ├── .env.example          # 环境变量示例
 │   └── requirements.txt      # Python 依赖
+├── data/                     # 运行期数据
+│   ├── experiences/          # 玩家经验存档
+│   └── game_logs/            # 游戏日志
 ├── frontend/                 # Web 控制台与日志查看
 │   ├── index.html            # UI 页面（桌面/移动兼容）
 │   ├── script.js             # 日志解析、自动刷新、启动/停止调用
@@ -159,7 +159,7 @@ werewolf-game/
 - 主入口：[backend/main.py](backend/main.py) 负责读取配置、初始化 9 名 ReActAgent 玩家、构建知识库并启动一局完整对局。
 - 配置管理：[backend/config.py](backend/config.py) 从 `.env` 读取模型提供商、API Key、回合上限和玩家经验存档路径等参数，并提供校验和脱敏打印。
 - 核心引擎：[backend/core/game_engine.py](backend/core/game_engine.py) 实现夜晚/白天循环、平票 PK、猎人开枪、胜负判定以及跨局知识更新。
-- 日志系统：[backend/core/game_logger.py](backend/core/game_logger.py) 将每局的关键动作写入 `backend/data/game_logs/game_<timestamp>.log`，包含发言、行为、思考、投票与死亡信息。
+- 日志系统：[backend/core/game_logger.py](backend/core/game_logger.py) 将每局的关键动作写入 `data/game_logs/game_<timestamp>.log`，包含发言、行为、思考、投票与死亡信息。
 - 长期记忆：[backend/core/knowledge_base.py](backend/core/knowledge_base.py) 为每名玩家维护持久化知识，启动时创建带时间戳的新经验存档，回合后自动增量保存。
 - 角色逻辑：[backend/models/roles.py](backend/models/roles.py) 定义狼人、村民、预言家、女巫、猎人五类角色的专属夜晚行为、投票/讨论流程及提示词。
 - 数据模型：[backend/models/schemas.py](backend/models/schemas.py) 用 Pydantic 规范化输出结构（speech/behavior/thought、投票、毒药/查验/开枪等）。
@@ -169,13 +169,13 @@ werewolf-game/
 
 - **启动/停止**：通过 Web 控制台按钮调用 [frontend/server.py](frontend/server.py) 的 `/api/game/start|stop`，后端进程会被创建或终止。
 - **终止日志落盘**：即便用户点击“停止游戏”终止进程，也会在最新日志尾部追加收口块（结束时间、游戏状态: 异常终止），避免日志缺尾。
-- **日志位置**：默认写入 `backend/data/game_logs/game_<timestamp>.log`，控制台支持选择文件与自动刷新。
-- **经验存档**：写入 `backend/data/experiences/players_experience_*.json`，每局结束合并持久知识。
+- **日志位置**：默认写入 `data/game_logs/game_<timestamp>.log`，控制台支持选择文件与自动刷新。
+- **经验存档**：写入 `data/experiences/players_experience_*.json`，每局结束合并持久知识。
 
 ## 运行时输出与数据
 
-- **游戏日志**：默认写入 `backend/data/game_logs`，包含完整时序的发言、投票、行动及胜负公告，便于回放与分析。
-- **经验存档/知识库**：每次启动都会在 `backend/data/experiences` 新建带时间戳的 `players_experience_*.json`，保存玩家的跨局经验；本局结束时会合并最新认知并落盘。历史示例文件仍保留 `checkpoint` 前缀，兼容查看。
+- **游戏日志**：默认写入 `data/game_logs`，包含完整时序的发言、投票、行动及胜负公告，便于回放与分析。
+- **经验存档/知识库**：每次启动都会在 `data/experiences` 新建带时间戳的 `players_experience_*.json`，保存玩家的跨局经验；本局结束时会合并最新认知并落盘。历史示例文件仍保留 `checkpoint` 前缀，兼容查看。
 
 
 
@@ -218,7 +218,7 @@ werewolf-game/
 
 ## 游戏日志
 
-每局游戏都会自动生成详细的日志文件，保存在 `backend/data/game_logs/` 目录。
+每局游戏都会自动生成详细的日志文件，保存在 `data/game_logs/` 目录。
 
 ### 日志内容
 

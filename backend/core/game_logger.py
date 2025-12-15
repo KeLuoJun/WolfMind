@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from config import config
+
 
 class GameLogger:
     """狼人杀游戏日志记录器"""
@@ -16,9 +18,7 @@ class GameLogger:
             log_dir: 日志文件存储目录（相对于 backend 目录）
         """
         self.game_id = game_id
-        base_dir = Path(__file__).resolve().parent.parent
-        resolved_dir = Path(
-            log_dir) if log_dir else base_dir / "data" / "game_logs"
+        resolved_dir = Path(log_dir) if log_dir else Path(config.log_dir)
         self.log_dir = resolved_dir
         self.log_file = resolved_dir / f"game_{game_id}.log"
         self.current_round = 0

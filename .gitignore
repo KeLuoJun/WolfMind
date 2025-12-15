@@ -43,8 +43,6 @@ backend/.env
 # Data
 data/experiences/*.json
 data/game_logs/*.log
-backend/data/experiences/*.json
-backend/data/game_logs/*.log
 
 # Logs
 # 默认忽略日志，但保留静态目录下的日志

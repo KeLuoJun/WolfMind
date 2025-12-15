@@ -102,7 +102,7 @@ class LogServerHandler(SimpleHTTPRequestHandler):
         # 从frontend目录向上一级，然后进入backend/data/game_logs
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
-        log_dir = os.path.join(project_root, 'backend', 'data', 'game_logs')
+        log_dir = os.path.join(project_root, 'data', 'game_logs')
 
         # print(f"Looking for logs in: {log_dir}") # Debug log
 
@@ -130,8 +130,7 @@ class LogServerHandler(SimpleHTTPRequestHandler):
         # 从frontend目录向上一级，然后进入backend/data/game_logs
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
-        log_path = os.path.join(project_root, 'backend',
-                                'data', 'game_logs', filename)
+        log_path = os.path.join(project_root, 'data', 'game_logs', filename)
 
         if not os.path.exists(log_path):
             self.send_error(404, 'Log file not found')
@@ -153,7 +152,7 @@ class LogServerHandler(SimpleHTTPRequestHandler):
         """发送玩家经验文件内容"""
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
-        exp_dir = os.path.join(project_root, 'backend', 'data', 'experiences')
+        exp_dir = os.path.join(project_root, 'data', 'experiences')
 
         # 查找匹配日期的经验文件
         if not os.path.exists(exp_dir):
@@ -283,7 +282,7 @@ class LogServerHandler(SimpleHTTPRequestHandler):
         """获取最新的游戏日志文件路径，如果不存在则返回 None。"""
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
-        log_dir = os.path.join(project_root, 'backend', 'data', 'game_logs')
+        log_dir = os.path.join(project_root, 'data', 'game_logs')
 
         if not os.path.exists(log_dir):
             return None
