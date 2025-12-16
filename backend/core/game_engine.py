@@ -104,7 +104,7 @@ def _format_impression_context(
 
 
 def _attach_context(prompt: Msg, context: str) -> Msg:
-    """Create a new moderator message with附加上下文。"""
+    """创建一个带有附加上下文的主持人消息。"""
     return Msg(prompt.name, f"{prompt.content}\n\n{context}", role=prompt.role)
 
 
