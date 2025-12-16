@@ -127,7 +127,7 @@ python main.py
 ## 项目结构
 
 ```
-werewolf-game/
+WolfMind/
 ├── backend/                  # 后端核心代码
 │   ├── main.py               # 应用入口
 │   ├── config.py             # 配置管理
