@@ -50,7 +50,7 @@ def _format_impression_context(
     round_num: int,
     phase: str,
 ) -> str:
-    """Compose private上下文给当前玩家使用。"""
+    """为当前玩家构建私有上下文以供使用。"""
 
     impressions = players.get_impressions(player_name, alive_only=True)
     impression_lines = [f"{name}: {imp}" for name, imp in impressions.items()]
