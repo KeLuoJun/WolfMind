@@ -114,8 +114,8 @@ ENABLE_STUDIO=false
 - 使用 OpenAI 时：
     1) 共用同一模型：只需设置 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME`。
     2) 设置模式：`OPENAI_PLAYER_MODE=single|per-player`
-         - `single`（默认）：忽略玩家级字段，9 人共用全局 `OPENAI_*`。
-         - `per-player`：需同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`，缺一则报错；不填写的玩家不会回退全局。
+         - `single`（默认）：忽略玩家级字段，9 人共用全局模型配置。
+         - `per-player`：需同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`，缺一则报错；不填写的玩家不会回退全局配置。
 
 **运行游戏**
 ```bash
@@ -126,8 +126,8 @@ python main.py
 
 **模型选择提示**：
 
-- DashScope：最小配置，推荐直连官方 API。
-- OpenAI 兼容：支持自定义 `OPENAI_BASE_URL`，可接驳自建代理。
+- DashScope：直连官方 API。
+- OpenAI 兼容：支持自定义模型。
 - Ollama：在本地运行模型，仅需安装 Ollama 和对应模型。
 
 ## 项目结构
