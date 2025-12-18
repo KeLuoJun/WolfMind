@@ -40,16 +40,22 @@ class GameLogger:
             f.write(f"开始时间: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("=" * 80 + "\n")
 
-    def log_players(self, players_info: list[tuple[str, str]]):
-        """记录玩家列表
+    def log_players(
+        self,
+        players_info: list[tuple[str, str]],
+        model_map: dict[str, str] | None = None,
+    ):
+        """记录玩家列表，可选带上模型说明。
 
         Args:
             players_info: 玩家信息列表，每项为 (玩家名, 角色名)
+            model_map: 可选的玩家模型映射，值将以括号展示
         """
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write("\n玩家列表:\n")
             for name, role in players_info:
-                f.write(f"  - {name}: {role}\n")
+                model_label = f" ({model_map[name]})" if model_map and name in model_map else ""
+                f.write(f"  - {name}{model_label}: {role}\n")
             f.write("\n" + "=" * 80 + "\n")
 
     def start_round(self, round_num: int):

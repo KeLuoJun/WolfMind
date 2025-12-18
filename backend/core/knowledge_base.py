@@ -29,6 +29,7 @@ class PlayerKnowledgeStore:
             "session_id": self.session_id,
             "created_at": datetime.now().isoformat(),
             "players": {},
+            "player_models": {},
         }
         # 为当前运行创建一个独立的空文件。
         self.save()
@@ -59,6 +60,15 @@ class PlayerKnowledgeStore:
             "players", {})  # type: ignore[arg-type]
         if isinstance(players, dict):
             players[name] = knowledge or ""
+
+    def set_player_models(self, model_map: Dict[str, str]) -> None:
+        """记录玩家对应的模型信息（字符串将直接写入经验文件）。"""
+
+        if not isinstance(self._data, dict):
+            self._data = {"session_id": self.session_id, "players": {}}
+        self._data["player_models"] = {
+            name: f"({model})" for name, model in model_map.items()
+        }
 
     def bulk_update(self, knowledge_map: Dict[str, str]) -> None:
         """批量替换或合并多名玩家的知识条目。"""

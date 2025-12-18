@@ -58,6 +58,17 @@ class Config:
         return self._get("OPENAI_API_KEY")
 
     @property
+    def openai_player_mode(self) -> str:
+        """OpenAI 玩家配置模式: single 或 per-player。"""
+
+        return (self._get("OPENAI_PLAYER_MODE", "single") or "single").lower()
+
+    def _get_player_override(self, key_prefix: str, idx: int) -> Optional[str]:
+        """读取形如 KEY_P1..P9 的配置。"""
+
+        return self._get(f"{key_prefix}_P{idx}")
+
+    @property
     def openai_base_url(self) -> str:
         """OpenAI Base URL"""
         return self._get("OPENAI_BASE_URL", "https://api.openai.com/v1")
@@ -66,6 +77,73 @@ class Config:
     def openai_model_name(self) -> str:
         """OpenAI Model Name"""
         return self._get("OPENAI_MODEL_NAME", "gpt-3.5-turbo")
+
+    @property
+    def openai_player_api_keys(self) -> list[str]:
+        """每个玩家的 OpenAI API Key 列表（从 OPENAI_API_KEY_P1..P9 读取）。"""
+
+        return [self._get_player_override("OPENAI_API_KEY", i) or "" for i in range(1, 10)]
+
+    @property
+    def openai_player_base_urls(self) -> list[str]:
+        """每个玩家的 OpenAI Base URL 列表（从 OPENAI_BASE_URL_P1..P9 读取）。"""
+
+        return [self._get_player_override("OPENAI_BASE_URL", i) or "" for i in range(1, 10)]
+
+    @property
+    def openai_player_models(self) -> list[str]:
+        """OpenAI 模型列表（从 OPENAI_MODEL_NAME_P1..P9 读取，按 Player1-Player9 顺序）。"""
+
+        return [self._get_player_override("OPENAI_MODEL_NAME", i) or "" for i in range(1, 10)]
+
+    @property
+    def openai_player_configs(self) -> list[dict[str, str]]:
+        """组合每位玩家的 OpenAI 配置。
+
+        逻辑：
+        - 若 OPENAI_PLAYER_MODE=single，则忽略玩家级字段，9 人共用全局 OPENAI_*。
+        - 若 OPENAI_PLAYER_MODE=per-player：
+            * 需为 9 个玩家全部提供 API_KEY/Base_URL/Model 的独立字段；缺失即报错。
+        """
+
+        keys = self.openai_player_api_keys
+        bases = self.openai_player_base_urls
+        models = self.openai_player_models
+
+        mode = self.openai_player_mode
+
+        if mode not in {"single", "per-player"}:
+            raise ValueError("OPENAI_PLAYER_MODE 仅支持 single 或 per-player")
+
+        # single: 全部使用全局配置
+        if mode == "single":
+            shared = {
+                "api_key": self.openai_api_key or "",
+                "base_url": self.openai_base_url,
+                "model_name": self.openai_model_name,
+            }
+            return [shared] * 9
+
+        # per-player: 每人必须有完整三元组
+        configs: list[dict[str, str]] = []
+        for idx in range(9):
+            per_key = keys[idx]
+            per_base = bases[idx]
+            per_model = models[idx]
+
+            if not (per_key and per_base and per_model):
+                raise ValueError(
+                    "OPENAI_PLAYER_MODE=per-player 时，OPENAI_API_KEY_Pn/OPENAI_BASE_URL_Pn/OPENAI_MODEL_NAME_Pn 均需填写"
+                )
+            configs.append(
+                {
+                    "api_key": per_key,
+                    "base_url": per_base,
+                    "model_name": per_model,
+                }
+            )
+
+        return configs
 
     @property
     def ollama_model_name(self) -> str:
@@ -147,8 +225,17 @@ class Config:
             if not self.dashscope_api_key:
                 return False, "DASHSCOPE_API_KEY 未设置"
         elif self.model_provider == "openai":
-            if not self.openai_api_key:
-                return False, "OPENAI_API_KEY 未设置"
+            try:
+                player_cfgs = self.openai_player_configs
+            except ValueError as exc:
+                return False, str(exc)
+
+            if any(not cfg.get("api_key") for cfg in player_cfgs):
+                return False, "OPENAI_API_KEY 未设置，或 OPENAI_PLAYER_API_KEYS 不完整"
+            if any(not cfg.get("base_url") for cfg in player_cfgs):
+                return False, "OPENAI_BASE_URL 未设置，或 OPENAI_PLAYER_BASE_URLS 不完整"
+            if any(not cfg.get("model_name") for cfg in player_cfgs):
+                return False, "OPENAI_MODEL_NAME 未设置，或 OPENAI_PLAYER_MODELS 不完整"
         elif self.model_provider == "ollama":
             # Ollama 不需要 API Key
             pass
@@ -179,6 +266,13 @@ class Config:
             print(f"OpenAI API Key: {masked_key}")
             print(f"OpenAI Base URL: {self.openai_base_url}")
             print(f"OpenAI Model: {self.openai_model_name}")
+            print(f"OpenAI Player Mode: {self.openai_player_mode}")
+            try:
+                player_cfgs = self.openai_player_configs
+                model_list = [cfg.get("model_name", "") for cfg in player_cfgs]
+                print("OpenAI Player Models: " + ", ".join(model_list))
+            except ValueError:
+                print("OpenAI Player Models: 配置错误")
         elif self.model_provider == "ollama":
             print(f"Ollama Model: {self.ollama_model_name}")
 

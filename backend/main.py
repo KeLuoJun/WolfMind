@@ -126,8 +126,11 @@ prompt = """
 """
 
 
-def get_official_agents(name: str) -> ReActAgent:
-    """根据配置获取官方狼人杀代理。"""
+def get_official_agents(
+    name: str,
+    model_cfg: dict[str, str] | None = None,
+) -> ReActAgent:
+    """根据配置获取官方狼人杀代理，可指定模型/密钥/基址覆盖。"""
 
     # 根据配置选择模型
     if config.model_provider == "dashscope":
@@ -142,14 +145,19 @@ def get_official_agents(name: str) -> ReActAgent:
             print_hint_msg=False,  # 禁用提示信息打印，避免重复输出
         )
     elif config.model_provider == "openai":
+        cfg = model_cfg or {
+            "api_key": config.openai_api_key,
+            "base_url": config.openai_base_url,
+            "model_name": config.openai_model_name,
+        }
         agent = ReActAgent(
             name=name,
             sys_prompt=prompt.format(name=name),
             model=OpenAIChatModel(
-                api_key=config.openai_api_key,
-                model_name=config.openai_model_name,
+                api_key=cfg.get("api_key"),
+                model_name=cfg.get("model_name"),
                 client_args={
-                    "base_url": config.openai_base_url,
+                    "base_url": cfg.get("base_url"),
                 },
             ),
             formatter=OpenAIMultiAgentFormatter(),
@@ -193,16 +201,41 @@ async def main() -> None:
         )
         print(f"✓ AgentScope Studio 已启用: {config.studio_url}")
 
-    # 准备 9 名玩家（可在此修改名字）
+    # 准备 9 名玩家（可在此修改名字/模型）
     print("\n正在创建 9 个玩家...")
-    players = [get_official_agents(f"Player{_ + 1}") for _ in range(9)]
+    model_overrides = (
+        config.openai_player_configs
+        if config.model_provider == "openai"
+        else [None] * 9
+    )
+    players = [
+        get_official_agents(f"Player{idx + 1}", model_overrides[idx])
+        for idx in range(9)
+    ]
     print("✓ 玩家创建完成\n")
+
+    # 记录玩家使用的模型（用于日志与经验文件）
+    def _model_label(provider: str, cfg: dict[str, str] | None) -> str:
+        if provider == "openai" and cfg:
+            return f"openai: {cfg.get('model_name', '')}"
+        if provider == "dashscope":
+            return f"dashscope: {config.dashscope_model_name}"
+        if provider == "ollama":
+            return f"ollama: {config.ollama_model_name}"
+        return provider
+
+    player_model_map = {
+        player.name: _model_label(config.model_provider, model_overrides[idx])
+        for idx, player in enumerate(players)
+    }
 
     # 初始化玩家知识库（每次启动都会创建新的空文件）
     knowledge_store = PlayerKnowledgeStore(
         checkpoint_dir=config.experience_dir,
         base_filename=config.experience_id,
     )
+    knowledge_store.set_player_models(player_model_map)
+    knowledge_store.save()
     print(f"✓ 知识库已创建: {knowledge_store.path}")
 
     # 提示：也可以在此替换为自定义的全部代理
@@ -220,7 +253,11 @@ async def main() -> None:
     print("🎮 游戏开始！")
     print("=" * 50 + "\n")
 
-    await werewolves_game(players, knowledge_store=knowledge_store)
+    await werewolves_game(
+        players,
+        knowledge_store=knowledge_store,
+        player_model_map=player_model_map,
+    )
 
     # 将最新状态保存到检查点
     print(f"\n正在保存经验存档: {config.experience_dir}/{config.experience_id}.json")

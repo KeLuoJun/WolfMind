@@ -111,6 +111,12 @@ DASHSCOPE_API_KEY=your_api_key_here
 ENABLE_STUDIO=false
 ```
 
+- 使用 OpenAI 时：
+    1) 共用同一模型：只需设置 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME`。
+    2) 设置模式：`OPENAI_PLAYER_MODE=single|per-player`
+         - `single`（默认）：忽略玩家级字段，9 人共用全局 `OPENAI_*`。
+         - `per-player`：需同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`，缺一则报错；不填写的玩家不会回退全局。
+
 **运行游戏**
 ```bash
 cd backend

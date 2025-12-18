@@ -321,6 +321,7 @@ async def _reflection_phase(
 async def werewolves_game(
     agents: list[ReActAgent],
     knowledge_store: PlayerKnowledgeStore | None = None,
+    player_model_map: dict[str, str] | None = None,
 ) -> None:
     """狼人杀游戏的主入口
 
@@ -388,7 +389,7 @@ async def werewolves_game(
     # 记录玩家列表到日志
     players_info = [(name, role)
                     for name, role in players.name_to_role.items()]
-    logger.log_players(players_info)
+    logger.log_players(players_info, model_map=player_model_map)
 
     game_status = "正常结束"
 
