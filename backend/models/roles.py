@@ -153,7 +153,7 @@ class Seer(BaseRole):
         # 询问预言家要查验谁
         prompt = await moderator(
             f"[{self.name} ONLY] {self.name}，你是预言家。"
-            f"请选择一名玩家查验身份。当前存活玩家：{', '.join([p.name for p in alive_players])}"
+            f"请选择一名玩家查验身份（查验结果仅显示“好人”或“狼人”）。当前存活玩家：{', '.join([p.name for p in alive_players])}"
         )
 
         if context:
@@ -175,19 +175,24 @@ class Seer(BaseRole):
         if checked_name:
             self.checked_players.append(checked_name)
             # 获取真实身份
-            role = game_state.get("name_to_role", {}).get(checked_name)
-            self.known_identities[checked_name] = role
+            true_role = game_state.get("name_to_role", {}).get(checked_name)
+
+            # 预言家只能看到是好人还是狼人
+            is_wolf = (true_role == "werewolf")
+            role_display = "狼人" if is_wolf else "好人"
+
+            self.known_identities[checked_name] = role_display
 
             # 告知预言家结果
             result_msg = await moderator(
-                f"[{self.name} ONLY] {checked_name} 的身份是 {role}。"
+                f"[{self.name} ONLY] {checked_name} 的身份是 {role_display}。"
             )
             await self.agent.observe(result_msg)
 
             result.update({
                 "action": "check",
                 "target": checked_name,
-                "result": role,
+                "result": role_display,
             })
             return result
 

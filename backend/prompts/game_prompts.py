@@ -76,7 +76,7 @@ class EnglishPrompts:
 
     to_seer = (
         "[SEER ONLY] {}, as the seer you can check one player's identity "
-        "tonight. Who do you want to check? Give me your reason and decision."
+        "tonight (the result will only show 'Good' or 'Werewolf'). Who do you want to check? Give me your reason and decision."
     )
 
     to_seer_result = (
@@ -209,7 +209,7 @@ class ChinesePrompts:
     to_all_seer_turn = "轮到预言家行动，预言家请睁眼并查验一名玩家身份..."
 
     to_seer = (
-        "[仅预言家可见] {}, 你是预言家，今晚可以查验一名玩家身份。你要查谁？请给出理由和决定。"
+        "[仅预言家可见] {}, 你是预言家，今晚可以查验一名玩家身份（查验结果仅显示“好人”或“狼人”）。你要查谁？请给出理由和决定。"
         "务必返回 speech、behavior、thought 三个字段，且只返回这三项。"
     )
 
