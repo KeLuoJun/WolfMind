@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=too-many-branches, too-many-statements, no-name-in-module
 """基于 agentscope 实现的狼人杀游戏。"""
+import asyncio
 import re
 from typing import Any
 from datetime import datetime
@@ -272,50 +273,62 @@ async def _reflection_phase(
 ) -> None:
     """让每位存活玩家在回合结束后更新印象。"""
 
-    for role in players.current_alive:
+    async def _run_reflection_task(role_obj: Any) -> dict[str, Any]:
+        await asyncio.sleep(0.4)  # 控制并行调用节奏
         context = _format_impression_context(
-            role.name,
+            role_obj.name,
             players,
             vote_history,
             round_public_records,
             round_num,
             "回合反思",
         )
+
         prompt = await moderator_agent(
-            f"[{role.name} ONLY] 本轮结束，请反思并更新你对其他存活玩家的印象。"
+            f"[{role_obj.name} ONLY] 本轮结束，请反思并更新你对其他存活玩家的印象。"
             "只填写需要更新的玩家，未提及的保持不变。思考过程 thought 仅自己可见。"
-            f"{' 你作为狼人，清楚知道所有狼人队友（含已出局）。' if getattr(role, 'role_name', '') == 'werewolf' else ''}",
+            f"{' 你作为狼人，清楚知道所有狼人队友（含已出局）。' if getattr(role_obj, 'role_name', '') == 'werewolf' else ''}",
         )
-        msg_reflect = await role.agent(
+        msg_reflect = await role_obj.agent(
             _attach_context(prompt, context),
             structured_model=ReflectionModel,
         )
-        updates = msg_reflect.metadata.get("impression_updates") or {}
-        players.apply_impression_updates(role.name, updates)
 
-        thought = msg_reflect.metadata.get("thought", "")
-        logger.log_reflection(
-            round_num,
-            role.name,
-            thought,
-            players.get_impressions(role.name, alive_only=True),
-        )
-
-        # 让玩家更新跨局的长期理解，并写入知识库
         knowledge_prompt = await moderator_agent(
-            f"[{role.name} ONLY] 在不泄露本局具体发言/投票细节的前提下，总结可复用的游戏理解。"
+            f"[{role_obj.name} ONLY] 在不泄露本局具体发言/投票细节的前提下，总结可复用的游戏理解。"
             "输出到 knowledge 字段，它会被保存为你的专属经验库并在未来行动时提供给你。",
         )
-        msg_knowledge = await role.agent(
+        msg_knowledge = await role_obj.agent(
             _attach_context(knowledge_prompt, context),
             structured_model=KnowledgeUpdateModel,
         )
-        knowledge_text = msg_knowledge.metadata.get("knowledge", "")
-        players.update_knowledge(role.name, knowledge_text)
-        knowledge_store.update_player_knowledge(role.name, knowledge_text)
 
-        # 持久化最新知识以便异常时不丢失
-        knowledge_store.save()
+        return {
+            "role": role_obj,
+            "updates": msg_reflect.metadata.get("impression_updates") or {},
+            "thought": msg_reflect.metadata.get("thought", ""),
+            "knowledge": msg_knowledge.metadata.get("knowledge", ""),
+        }
+
+    reflection_results = await asyncio.gather(
+        *(_run_reflection_task(role) for role in players.current_alive),
+    )
+
+    for res in reflection_results:
+        role_obj = res["role"]
+        players.apply_impression_updates(role_obj.name, res.get("updates"))
+        logger.log_reflection(
+            round_num,
+            role_obj.name,
+            res.get("thought", ""),
+            players.get_impressions(role_obj.name, alive_only=True),
+        )
+        knowledge_text = res.get("knowledge", "")
+        players.update_knowledge(role_obj.name, knowledge_text)
+        knowledge_store.update_player_knowledge(role_obj.name, knowledge_text)
+
+    # 持久化最新知识以便异常时不丢失（集中写入减少磁盘开销）
+    knowledge_store.save()
 
 
 async def werewolves_game(
@@ -815,19 +828,28 @@ async def werewolves_game(
             )
             round_vote_records: list[dict[str, Any]] = []
             day_votes_for_majority: list[str | None] = []
-            for role in players.current_alive:
+
+            async def _vote_task(role_obj: Any) -> tuple[Any, Msg | None]:
+                await asyncio.sleep(0.4)  # 控制并行调用节奏
                 context = _format_impression_context(
-                    role.name,
+                    role_obj.name,
                     players,
                     vote_history,
                     round_public_records,
                     round_num,
                     "白天投票",
                 )
-                msg = await role.vote(
+                msg = await role_obj.vote(
                     _attach_context(vote_prompt, context),
                     players.current_alive,
                 )
+                return role_obj, msg
+
+            vote_results = await asyncio.gather(
+                *(_vote_task(role) for role in players.current_alive),
+            )
+
+            for role_obj, msg in vote_results:
                 if not msg:
                     speech = behavior = thought = content_raw = ""
                     raw_vote = None
@@ -843,7 +865,7 @@ async def werewolves_game(
 
                 if vote_value:
                     logger.log_vote(
-                        role.name,
+                        role_obj.name,
                         vote_value,
                         "投票",
                         speech=speech or content_raw,
@@ -853,7 +875,7 @@ async def werewolves_game(
                 else:
                     logger.log_message_detail(
                         "投票",
-                        role.name,
+                        role_obj.name,
                         speech=speech or content_raw,
                         behavior=behavior,
                         thought=thought,
@@ -864,7 +886,7 @@ async def werewolves_game(
                     {
                         "round": round_num,
                         "phase": "白天投票",
-                        "voter": role.name,
+                        "voter": role_obj.name,
                         "target": vote_value,
                     },
                 )
@@ -938,27 +960,37 @@ async def werewolves_game(
                         names_to_str(pk_candidates),
                     ),
                 )
-                pk_votes_for_majority: list[str | None] = []
-                for role in players.current_alive:
+                pk_vote_targets = [
+                    players.name_to_role_obj[name]
+                    for name in pk_candidates
+                    if name in players.name_to_role_obj
+                ]
+
+                async def _pk_vote_task(role_obj: Any) -> tuple[Any, Msg | None]:
+                    await asyncio.sleep(0.4)  # 控制并行调用节奏
                     context = _format_impression_context(
-                        role.name,
+                        role_obj.name,
                         players,
                         vote_history,
                         round_public_records,
                         round_num,
                         f"PK投票#{pk_round}",
                     )
-                    vote_msg = await role.agent(
+                    vote_msg = await role_obj.agent(
                         _attach_context(pk_vote_prompt, context),
                         structured_model=get_vote_model(
-                            [
-                                players.name_to_role_obj[name]
-                                for name in pk_candidates
-                                if name in players.name_to_role_obj
-                            ],
+                            pk_vote_targets,
                             allow_abstain=False,
                         ),
                     )
+                    return role_obj, vote_msg
+
+                pk_votes_for_majority: list[str | None] = []
+                pk_vote_results = await asyncio.gather(
+                    *(_pk_vote_task(role) for role in players.current_alive),
+                )
+
+                for role_obj, vote_msg in pk_vote_results:
                     if vote_msg:
                         speech, behavior, thought, content_raw = _extract_msg_fields(
                             vote_msg)
@@ -973,7 +1005,7 @@ async def werewolves_game(
 
                     if vote_value:
                         logger.log_vote(
-                            role.name,
+                            role_obj.name,
                             vote_value,
                             f"PK投票#{pk_round}",
                             speech=speech or content_raw,
@@ -983,7 +1015,7 @@ async def werewolves_game(
                     else:
                         logger.log_message_detail(
                             "PK投票",
-                            role.name,
+                            role_obj.name,
                             speech=speech or content_raw,
                             behavior=behavior,
                             thought=thought,
@@ -994,7 +1026,7 @@ async def werewolves_game(
                         {
                             "round": round_num,
                             "phase": f"PK投票#{pk_round}",
-                            "voter": role.name,
+                            "voter": role_obj.name,
                             "target": vote_value,
                         },
                     )
