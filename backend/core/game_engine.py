@@ -335,6 +335,8 @@ async def werewolves_game(
     agents: list[ReActAgent],
     knowledge_store: PlayerKnowledgeStore | None = None,
     player_model_map: dict[str, str] | None = None,
+    game_id: str | None = None,
+    event_sink: Any | None = None,
 ) -> tuple[str, str]:
     """狼人杀游戏的主入口
 
@@ -355,8 +357,8 @@ async def werewolves_game(
     knowledge_store.load()
 
     # 初始化游戏日志
-    game_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger = GameLogger(game_id)
+    gid = game_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger = GameLogger(gid, event_sink=event_sink)
 
     # 记录可公开的投票历史，供后续回合参考
     vote_history: list[dict[str, Any]] = []
@@ -596,7 +598,7 @@ async def werewolves_game(
 
                 result = await witch.night_action(game_state)
 
-                # Log resurrect speech
+                # 记录女巫“解药”阶段的结构化输出
                 r_speech = result.get("resurrect_speech")
                 r_behavior = result.get("resurrect_behavior")
                 r_thought = result.get("resurrect_thought")
@@ -608,7 +610,7 @@ async def werewolves_game(
                     thought=r_thought,
                 )
 
-                # Log poison speech
+                # 记录女巫“毒药”阶段的结构化输出
                 p_speech = result.get("poison_speech")
                 p_behavior = result.get("poison_behavior")
                 p_thought = result.get("poison_thought")
@@ -657,7 +659,7 @@ async def werewolves_game(
 
                 result = await seer.night_action(game_state)
 
-                # Log speech/behavior/thought
+                # 记录预言家行动的结构化输出（心声/表现/发言）
                 logger.log_message_detail(
                     "预言家行动",
                     seer.name,

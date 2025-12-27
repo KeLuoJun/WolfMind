@@ -4,9 +4,14 @@ import asyncio
 import sys
 from pathlib import Path
 
-from core.game_engine import werewolves_game
-from core.knowledge_base import PlayerKnowledgeStore
-from config import config
+try:
+    from .core.game_engine import werewolves_game  # type: ignore
+    from .core.knowledge_base import PlayerKnowledgeStore  # type: ignore
+    from .config import config  # type: ignore
+except Exception:  # noqa: BLE001
+    from core.game_engine import werewolves_game
+    from core.knowledge_base import PlayerKnowledgeStore
+    from config import config
 from analysis.pipeline import run_analysis
 
 from agentscope.agent import ReActAgent

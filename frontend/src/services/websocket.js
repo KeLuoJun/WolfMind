@@ -1,6 +1,6 @@
 /**
- * WebSocket Client for Read-Only Connection
- * Handles connection, reconnection, and heartbeat
+ * 只读 WebSocket 客户端
+ * 负责：连接、断线重连、心跳保活
  */
 
 import { WS_URL } from "../config/constants";
@@ -33,7 +33,7 @@ export class ReadOnlyClient {
       return;
     }
 
-    // Clear any existing connection
+    // 清理已有连接
     if (this.ws) {
       this.ws.onopen = null;
       this.ws.onmessage = null;
@@ -60,7 +60,7 @@ export class ReadOnlyClient {
       try {
         const msg = JSON.parse(ev.data);
 
-        // Update pong time for any message (server is alive)
+        // 任意消息都刷新 pong 时间（表示服务端仍然存活）
         this.lastPongTime = Date.now();
 
         if (msg.type === "pong") {
@@ -85,10 +85,10 @@ export class ReadOnlyClient {
       this._stopHeartbeat();
       this.ws = null;
 
-      // Always attempt reconnect if shouldReconnect is true
+      // 只要 shouldReconnect 为 true，就持续尝试重连
       if (this.shouldReconnect) {
         this.reconnectAttempts++;
-        // Exponential backoff with cap
+        // 指数退避（带上限）
         this.reconnectDelay = Math.min(
           this.baseReconnectDelay * Math.pow(1.5, this.reconnectAttempts),
           this.maxReconnectDelay
@@ -126,7 +126,7 @@ export class ReadOnlyClient {
     this.heartbeatTimer = setInterval(() => {
       this._sendPing();
 
-      // Check for stale connection (no response in 60s)
+      // 检测连接是否“卡死”（60s 无任何响应则强制重连）
       const timeSinceLastPong = Date.now() - this.lastPongTime;
       if (timeSinceLastPong > 60000 && this.ws) {
         console.warn("[WebSocket] Connection appears stale, forcing reconnect");

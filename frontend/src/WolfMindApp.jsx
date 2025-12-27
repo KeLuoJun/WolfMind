@@ -5,7 +5,7 @@ import Header from "./components/Header";
 import RoomView from "./components/RoomView";
 import GameFeed from "./components/GameFeed";
 
-import { AGENTS } from "./config/constants";
+import { DEFAULT_AGENTS, API_URL, BUBBLE_LIFETIME_MS, ASSETS } from "./config/constants";
 import { ReadOnlyClient } from "./services/websocket";
 import { useFeedProcessor } from "./hooks/useFeedProcessor";
 
@@ -20,12 +20,135 @@ const extractBubbleText = (content) => {
 export default function WolfMindApp() {
   const [connectionStatus, setConnectionStatus] = useState("connecting"); // connecting|connected|disconnected
   const [phaseText, setPhaseText] = useState("准备中");
+  const [startingGame, setStartingGame] = useState(false);
+  const [stoppingGame, setStoppingGame] = useState(false);
 
-  const { feed, processHistoricalFeed, processFeedEvent, addSystemMessage } = useFeedProcessor();
+  const [agents, setAgents] = useState(DEFAULT_AGENTS);
+  const agentsRef = useRef(agents);
+  useEffect(() => {
+    agentsRef.current = agents;
+  }, [agents]);
+
+  const getAgentById = useCallback((agentId) => {
+    if (!agentId) return null;
+    return agentsRef.current?.find((a) => a.id === agentId) || null;
+  }, []);
+
+  const { feed, processHistoricalFeed, processFeedEvent, addSystemMessage } = useFeedProcessor({ getAgentById });
 
   const [bubbles, setBubbles] = useState({});
   const clientRef = useRef(null);
   const feedRef = useRef(null);
+  const bubbleTimersRef = useRef({});
+
+  const roleMetaFromRole = useCallback((role) => {
+    const raw = String(role || "").toLowerCase();
+    // Normalize to internal role keys
+    const isWerewolf = raw.includes("狼人") || raw.includes("werewolf");
+    const isSeer = raw.includes("预言家") || raw.includes("seer") || raw.includes("prophet");
+    const isWitch = raw.includes("女巫") || raw.includes("witch");
+    const isHunter = raw.includes("猎人") || raw.includes("hunter");
+    const isGuard = raw.includes("守卫") || raw.includes("guard") || raw.includes("bodyguard");
+    const isVillager = raw.includes("平民") || raw.includes("villager") || raw.includes("村民");
+
+    if (isWerewolf) {
+      return {
+        alignment: "werewolves",
+        avatar: ASSETS.avatars.werewolf,
+        colors: { bg: "#111827", text: "#F8FAFC", accent: "#F8FAFC" },
+      };
+    }
+    if (isSeer) {
+      return {
+        alignment: "villagers",
+        avatar: ASSETS.avatars.seer,
+        colors: { bg: "#EEF2FF", text: "#3730A3", accent: "#3730A3" },
+      };
+    }
+    if (isWitch) {
+      return {
+        alignment: "villagers",
+        avatar: ASSETS.avatars.witch,
+        colors: { bg: "#ECFEFF", text: "#0F766E", accent: "#0F766E" },
+      };
+    }
+    if (isHunter) {
+      return {
+        alignment: "villagers",
+        avatar: ASSETS.avatars.hunter,
+        colors: { bg: "#FEF3C7", text: "#92400E", accent: "#92400E" },
+      };
+    }
+    if (isGuard) {
+      return {
+        alignment: "villagers",
+        avatar: ASSETS.avatars.guard,
+        colors: { bg: "#ECFDF5", text: "#065F46", accent: "#065F46" },
+      };
+    }
+    if (isVillager) {
+      return {
+        alignment: "villagers",
+        avatar: ASSETS.avatars.villager,
+        colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" },
+      };
+    }
+
+    return {
+      alignment: "unknown",
+      avatar: ASSETS.avatars.villager,
+      colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" },
+    };
+  }, []);
+
+  const mapPlayerNameToAgentId = useCallback((name) => {
+    const n = String(name || "");
+    const lower = n.toLowerCase();
+    if (lower.startsWith("player")) {
+      const suffix = lower.slice(6);
+      const num = Number(suffix);
+      if (Number.isFinite(num) && num >= 1 && num <= 99) {
+        return `player_${num}`;
+      }
+    }
+    return null;
+  }, []);
+
+  const applyPlayersInit = useCallback(
+    (players) => {
+      if (!Array.isArray(players) || players.length === 0) return;
+
+      const prev = agentsRef.current || DEFAULT_AGENTS;
+      const byId = new Map((prev || []).map((a) => [a.id, a]));
+      for (const p of players) {
+        const agentId = mapPlayerNameToAgentId(p?.name);
+        if (!agentId) continue;
+
+        const base = byId.get(agentId) || { id: agentId, name: agentId };
+        const seatNum = agentId.startsWith("player_") ? agentId.slice(7) : "";
+        const meta = roleMetaFromRole(p?.role);
+        byId.set(agentId, {
+          ...base,
+          id: agentId,
+          name: seatNum ? `${Number(seatNum)}号` : base.name,
+          role: String(p?.role || "未知"),
+          alignment: meta.alignment,
+          avatar: meta.avatar,
+          colors: meta.colors,
+          model: p?.model || base.model,
+        });
+      }
+      const nextAgents = Array.from(byId.values()).sort((a, b) => {
+        const na = Number(String(a.id).replace("player_", ""));
+        const nb = Number(String(b.id).replace("player_", ""));
+        return (Number.isFinite(na) ? na : 0) - (Number.isFinite(nb) ? nb : 0);
+      });
+
+      agentsRef.current = nextAgents;
+      setAgents(nextAgents);
+    },
+    [mapPlayerNameToAgentId, roleMetaFromRole]
+  );
 
   const statusText = useMemo(() => {
     if (connectionStatus === "connected") return "已连接";
@@ -39,7 +162,7 @@ export default function WolfMindApp() {
       const direct = bubbles[idOrName];
       if (direct) return direct;
 
-      const agent = AGENTS.find((a) => a.id === idOrName || a.name === idOrName);
+      const agent = agentsRef.current?.find((a) => a.id === idOrName || a.name === idOrName);
       if (!agent) return null;
       return bubbles[agent.id] || null;
     },
@@ -58,11 +181,11 @@ export default function WolfMindApp() {
     const msg = messageOrFeedItem.type ? messageOrFeedItem.data : messageOrFeedItem;
     if (!msg || !msg.agentId) return;
 
-    const agent = AGENTS.find((a) => a.id === msg.agentId);
+    const agent = agentsRef.current?.find((a) => a.id === msg.agentId);
     const bubble = {
       agentId: msg.agentId,
       agentName: msg.agent || agent?.name,
-      text: extractBubbleText(msg.content),
+      text: extractBubbleText(msg.speech || msg.content),
       timestamp: msg.timestamp || Date.now(),
       ts: msg.timestamp || Date.now(),
       id: msg.id,
@@ -73,6 +196,31 @@ export default function WolfMindApp() {
       ...prev,
       [msg.agentId]: bubble,
     }));
+
+    // Auto-hide after a short time (keep feed intact)
+    const timers = bubbleTimersRef.current;
+    if (timers[msg.agentId]) {
+      clearTimeout(timers[msg.agentId]);
+    }
+    timers[msg.agentId] = setTimeout(() => {
+      setBubbles((prev) => {
+        if (!prev[msg.agentId]) return prev;
+        const next = { ...prev };
+        delete next[msg.agentId];
+        return next;
+      });
+      delete timers[msg.agentId];
+    }, BUBBLE_LIFETIME_MS || 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      const timers = bubbleTimersRef.current || {};
+      for (const k of Object.keys(timers)) {
+        clearTimeout(timers[k]);
+      }
+      bubbleTimersRef.current = {};
+    };
   }, []);
 
   useEffect(() => {
@@ -89,6 +237,11 @@ export default function WolfMindApp() {
         }
       }
 
+      // Backend sends role assignment in a system event (players list)
+      if (evt.type === "system" && Array.isArray(evt.players)) {
+        applyPlayersInit(evt.players);
+      }
+
       if (evt.type === "day_start") {
         setPhaseText("白天");
       }
@@ -97,6 +250,14 @@ export default function WolfMindApp() {
       }
 
       if (evt.type === "historical" && Array.isArray(evt.events)) {
+        // Historical snapshot may include the players init event; apply it first.
+        const playersInit = evt.events
+          .filter((e) => e && e.type === "system" && Array.isArray(e.players))
+          .map((e) => e.players)
+          .pop();
+        if (playersInit) {
+          applyPlayersInit(playersInit);
+        }
         processHistoricalFeed(evt.events);
         return;
       }
@@ -122,19 +283,75 @@ export default function WolfMindApp() {
       }
       clientRef.current = null;
     };
-  }, [addSystemMessage, processFeedEvent, processHistoricalFeed, upsertBubbleFromMessage]);
+  }, [addSystemMessage, applyPlayersInit, processFeedEvent, processHistoricalFeed, upsertBubbleFromMessage]);
+
+  const startGame = useCallback(async () => {
+    if (startingGame) return;
+    setStartingGame(true);
+    try {
+      addSystemMessage("正在请求后端开始游戏…");
+      const res = await fetch(`${API_URL}/api/game/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        addSystemMessage(`开始游戏失败: ${res.status} ${text || res.statusText}`);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      addSystemMessage(`已开始游戏 (gameId=${data?.gameId || ""})`);
+    } catch (e) {
+      addSystemMessage(`开始游戏失败: ${String(e?.message || e)}`);
+    } finally {
+      setStartingGame(false);
+    }
+  }, [addSystemMessage, startingGame]);
+
+  const stopGame = useCallback(async () => {
+    if (stoppingGame) return;
+    setStoppingGame(true);
+    try {
+      addSystemMessage("正在请求后端终止游戏…");
+      const res = await fetch(`${API_URL}/api/game/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        addSystemMessage(`终止游戏失败: ${res.status} ${text || res.statusText}`);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      addSystemMessage(data?.message || "已请求终止游戏");
+    } catch (e) {
+      addSystemMessage(`终止游戏失败: ${String(e?.message || e)}`);
+    } finally {
+      setStoppingGame(false);
+    }
+  }, [addSystemMessage, stoppingGame]);
 
   return (
     <div className="app">
       <GlobalStyles />
 
       <div className="header">
-        <Header statusText={statusText} phaseText={phaseText} />
+        <Header
+          statusText={statusText}
+          phaseText={phaseText}
+          onStartGame={startGame}
+          onStopGame={stopGame}
+          startDisabled={startingGame}
+          startLabel={startingGame ? "启动中…" : "开始游戏"}
+          stopDisabled={stoppingGame}
+          stopLabel={stoppingGame ? "终止中…" : "终止游戏"}
+        />
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ width: "70%", minWidth: 0, borderRight: "1px solid #e0e0e0" }}>
           <RoomView
+            agents={agents}
             bubbles={bubbles}
             bubbleFor={bubbleFor}
             leaderboard={[]}

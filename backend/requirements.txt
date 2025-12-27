@@ -7,9 +7,6 @@ numpy>=1.24.0
 # 结构化输出
 pydantic>=2.0.0
 
-# 异步支持
-asyncio
-
 # DashScope API (阿里云通义千问)
 dashscope>=1.14.0
 
@@ -21,3 +18,7 @@ openai>=1.0.0
 
 # 其他依赖
 typing-extensions>=4.5.0
+
+# FastAPI server (frontend integration)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ASSETS, SCENE_NATIVE, AGENT_SEATS, AGENTS } from '../config/constants';
+import { ASSETS, SCENE_NATIVE, AGENT_SEATS } from '../config/constants';
 import AgentCard from './AgentCard';
 import { getModelIcon } from '../utils/modelIcons';
 
@@ -47,7 +47,7 @@ function getRankMedal(rank) {
  * Supports click and hover (1.5s) to show agent performance cards
  * Supports replay mode - completely independent from live mode
  */
-export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJumpToMessage }) {
+export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard, feed, onJumpToMessage }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -155,16 +155,16 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
     const speaking = {};
-    AGENTS.forEach(agent => {
+    agents.forEach(agent => {
       const bubble = bubbleFor(agent.name);
       speaking[agent.id] = !!bubble;
     });
     return speaking;
-  }, [bubbles, bubbleFor]);
+  }, [agents, bubbleFor]);
 
   // Find agent data from leaderboard
   const getAgentData = (agentId) => {
-    const agent = AGENTS.find(a => a.id === agentId);
+    const agent = agents.find(a => a.id === agentId);
     if (!agent) return null;
 
     // If no leaderboard data, return agent with default stats
@@ -193,7 +193,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
       };
     }
 
-    // Merge data but preserve the correct avatar from AGENTS config
+    // Merge data but preserve the correct avatar from UI agents config
     return {
       ...agent,
       ...leaderboardData,
@@ -313,7 +313,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
         // Skip system messages
         if (msg.agent === 'System') return;
         // Find matching agent
-        const agent = AGENTS.find(a =>
+        const agent = agents.find(a =>
           a.id === msg.agentId ||
           a.name === msg.agent
         );
@@ -329,7 +329,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
       } else if (item.type === 'conference' && item.data?.messages) {
         item.data.messages.forEach((msg, msgIndex) => {
           if (msg.agent === 'System') return;
-          const agent = AGENTS.find(a =>
+          const agent = agents.find(a =>
             a.id === msg.agentId ||
             a.name === msg.agent
           );
@@ -347,7 +347,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
     });
 
     return messages;
-  }, []);
+  }, [agents]);
 
   // Show next message in replay
   const showNextMessage = useCallback(() => {
@@ -475,7 +475,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
     if (isReplaying) {
       // Find replay bubble for this agent
       const bubble = Object.values(replayBubbles).find(b => {
-        const agent = AGENTS.find(a => a.id === b.agentId);
+        const agent = agents.find(a => a.id === b.agentId);
         return agent && agent.name === agentName;
       });
       return bubble || null;
@@ -483,13 +483,13 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
       // Use normal bubbleFor function
       return bubbleFor(agentName);
     }
-  }, [isReplaying, replayBubbles, bubbleFor]);
+  }, [isReplaying, replayBubbles, bubbleFor, agents]);
 
   return (
     <div className="room-view">
       {/* Agents Indicator Bar */}
       <div className="room-agents-indicator">
-        {AGENTS.map((agent, index) => {
+        {agents.map((agent, index) => {
           const rank = getAgentRank(agent.id);
           const medal = rank ? getRankMedal(rank) : null;
           const agentData = getAgentData(agent.id);
@@ -555,8 +555,69 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
           <div className="room-scene-wrapper" style={{ width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
             <canvas ref={canvasRef} className="room-canvas" />
 
+            {/* Agents on seats (around the table) */}
+            {agents.map((agent, idx) => {
+              const pos = AGENT_SEATS[idx] || AGENT_SEATS[0];
+              const scaledWidth = SCENE_NATIVE.width * scale;
+              const scaledHeight = SCENE_NATIVE.height * scale;
+
+              const left = Math.round(pos.x * scaledWidth);
+              const top = Math.round(scaledHeight - pos.y * scaledHeight);
+
+              const isSpeaking = !!speakingAgents[agent.id];
+
+              return (
+                <div
+                  key={agent.id}
+                  style={{
+                    position: 'absolute',
+                    left,
+                    top,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 15,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 6,
+                    userSelect: 'none'
+                  }}
+                  onClick={() => handleAgentClick(agent.id)}
+                  onMouseEnter={() => handleAgentMouseEnter(agent.id)}
+                  onMouseLeave={handleAgentMouseLeave}
+                >
+                  <img
+                    src={agent.avatar}
+                    alt={agent.name}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 999,
+                      border: '2px solid #000000',
+                      background: '#ffffff',
+                      boxShadow: isSpeaking ? '0 0 0 3px rgba(0, 0, 0, 0.15)' : 'none'
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      background: '#ffffff',
+                      border: '1px solid #000000',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      lineHeight: 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {agent.name}
+                  </div>
+                </div>
+              );
+            })}
+
             {/* Speech Bubbles */}
-            {AGENTS.map((agent, idx) => {
+            {agents.map((agent, idx) => {
               const bubble = getBubbleForAgent(agent.name);
               if (!bubble) return null;
 
@@ -565,7 +626,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, feed, onJump
               // Check if bubble is hidden
               if (hiddenBubbles[bubbleKey]) return null;
 
-              const pos = AGENT_SEATS[idx];
+              const pos = AGENT_SEATS[idx] || AGENT_SEATS[0];
               const scaledWidth = SCENE_NATIVE.width * scale;
               const scaledHeight = SCENE_NATIVE.height * scale;
 

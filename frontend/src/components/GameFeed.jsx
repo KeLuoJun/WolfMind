@@ -21,6 +21,11 @@ const normalizeFeedToMessages = (feed) => {
           role: msg.role,
           content: msg.content,
           agentId: msg.agentId,
+          thought: msg.thought,
+          behavior: msg.behavior,
+          speech: msg.speech,
+          category: msg.category,
+          action: msg.action,
         });
       }
       continue;
@@ -34,6 +39,11 @@ const normalizeFeedToMessages = (feed) => {
         role: item.data.role,
         content: item.data.content,
         agentId: item.data.agentId,
+        thought: item.data.thought,
+        behavior: item.data.behavior,
+        speech: item.data.speech,
+        category: item.data.category,
+        action: item.data.action,
       });
       continue;
     }
@@ -52,6 +62,41 @@ const normalizeFeedToMessages = (feed) => {
 
   // feed is newest-first; keep it newest-first
   return out;
+};
+
+const renderMessageBody = (m) => {
+  const thought = String(m.thought || "").trim();
+  const behavior = String(m.behavior || "").trim();
+  const speech = String(m.speech || "").trim();
+  const content = String(m.content || "").trim();
+
+  const hasStructured = Boolean(thought || behavior || speech);
+  if (!hasStructured) {
+    return <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>{content}</div>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {thought ? (
+        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+          <span style={{ fontWeight: 800, color: "#111827" }}>心声：</span>{thought}
+        </div>
+      ) : null}
+      {behavior ? (
+        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+          <span style={{ fontWeight: 800, color: "#111827" }}>表现：</span>{behavior}
+        </div>
+      ) : null}
+      {speech ? (
+        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>
+          <span style={{ fontWeight: 800, color: "#111827" }}>发言：</span>{speech}
+        </div>
+      ) : null}
+      {!speech && content ? (
+        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>{content}</div>
+      ) : null}
+    </div>
+  );
 };
 
 const GameFeed = forwardRef(function GameFeed({ feed }, ref) {
@@ -134,7 +179,7 @@ const GameFeed = forwardRef(function GameFeed({ feed }, ref) {
                   <div style={{ fontSize: 10, color: "#6b7280" }}>{formatTime(m.timestamp)}</div>
                 </div>
                 <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>
-                  {String(m.content || "")}
+                  {renderMessageBody(m)}
                 </div>
               </div>
             );

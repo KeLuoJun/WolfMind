@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef } from "react";
-import { AGENTS } from "../config/constants";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 const MAX_FEED_ITEMS = 200;
 
@@ -11,25 +10,37 @@ const generateId = (prefix = "item") => `${prefix}-${Date.now()}-${Math.random()
 /**
  * Convert raw event to a message object (for use within conferences or standalone)
  */
-const eventToMessage = (evt) => {
+const eventToMessage = (evt, getAgentById) => {
   if (!evt || !evt.type) {
     return null;
   }
 
-  const agent = AGENTS.find(a => a.id === evt.agentId);
+  const agent = typeof getAgentById === "function" ? getAgentById(evt.agentId) : null;
   const timestamp = evt.timestamp || evt.ts || Date.now();
 
   switch (evt.type) {
   case "agent_message":
   case "conference_message":
+    {
+      const thought = evt.thought || "";
+      const behavior = evt.behavior || "";
+      const speech = evt.speech || "";
+      const content = evt.content || speech || "";
+
     return {
       id: generateId("msg"),
       timestamp,
       agentId: evt.agentId,
       agent: agent?.name || evt.agentName || evt.agentId || "Agent",
-      role: agent?.role || evt.role || "Agent",
-      content: evt.content
+      role: evt.role || agent?.role || "Agent",
+      content,
+      thought,
+      behavior,
+      speech,
+      category: evt.category,
+      action: evt.action,
     };
+    }
 
   case "memory":
     return {
@@ -43,6 +54,8 @@ const eventToMessage = (evt) => {
 
   case "system":
   case "day_start":
+  case "night_start":
+  case "round_start":
   case "day_complete":
   case "day_error":
     return {
@@ -61,12 +74,12 @@ const eventToMessage = (evt) => {
 /**
  * Convert raw event to a standalone feed item (non-conference)
  */
-const eventToFeedItem = (evt) => {
+const eventToFeedItem = (evt, getAgentById) => {
   if (!evt || !evt.type) {
     return null;
   }
 
-  const message = eventToMessage(evt);
+  const message = eventToMessage(evt, getAgentById);
   if (!message) {
     return null;
   }
@@ -94,8 +107,13 @@ const eventToFeedItem = (evt) => {
 /**
  * Custom hook for processing feed events with conference aggregation
  */
-export function useFeedProcessor() {
+export function useFeedProcessor({ getAgentById } = {}) {
   const [feed, setFeed] = useState([]);
+
+  const getAgentByIdRef = useRef(getAgentById);
+  useEffect(() => {
+    getAgentByIdRef.current = getAgentById;
+  }, [getAgentById]);
 
   // Active conference ref for real-time event handling
   const activeConferenceRef = useRef(null);
@@ -150,7 +168,7 @@ export function useFeedProcessor() {
           }
         } else if (evt.type === "conference_message") {
           // Add to current conference if exists
-          const message = eventToMessage(evt);
+          const message = eventToMessage(evt, getAgentByIdRef.current);
           if (message && currentConference) {
             currentConference.messages.push(message);
           } else if (message) {
@@ -163,7 +181,7 @@ export function useFeedProcessor() {
           }
         } else {
           // Non-conference events
-          const feedItem = eventToFeedItem(evt);
+          const feedItem = eventToFeedItem(evt, getAgentByIdRef.current);
           if (feedItem) {
             if (currentConference) {
               // Add to conference messages
@@ -244,7 +262,7 @@ export function useFeedProcessor() {
 
     // Handle conference message
     if (evt.type === "conference_message") {
-      const message = eventToMessage(evt);
+      const message = eventToMessage(evt, getAgentByIdRef.current);
       if (!message) {
         return null;
       }
@@ -272,12 +290,21 @@ export function useFeedProcessor() {
     }
 
     // Handle other feed events (agent_message, memory, system, etc.)
-    const feedEventTypes = ["agent_message", "memory", "system", "day_start", "day_complete", "day_error"];
+    const feedEventTypes = [
+      "agent_message",
+      "memory",
+      "system",
+      "day_start",
+      "night_start",
+      "round_start",
+      "day_complete",
+      "day_error"
+    ];
     if (!feedEventTypes.includes(evt.type)) {
       return null;
     }
 
-    const feedItem = eventToFeedItem(evt);
+    const feedItem = eventToFeedItem(evt, getAgentByIdRef.current);
     if (!feedItem) {
       return null;
     }

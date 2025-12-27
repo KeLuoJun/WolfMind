@@ -3,7 +3,10 @@
 from collections import Counter, defaultdict
 from typing import Any
 
-from config import config
+try:
+    from ..config import config  # type: ignore
+except Exception:  # noqa: BLE001
+    from config import config
 from prompts import EnglishPrompts, ChinesePrompts
 
 from agentscope.message import Msg

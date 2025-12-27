@@ -41,80 +41,83 @@ export const AGENT_SEATS = [
 ];
 
 // Players (kept as AGENTS to minimize code changes across existing components)
-export const AGENTS = [
+export const DEFAULT_AGENTS = [
   {
     id: "player_1",
     name: "1号",
-    role: "平民",
-    alignment: "villagers",
+    role: "未知",
+    alignment: "unknown",
     avatar: ASSETS.avatars.villager,
     colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_2",
     name: "2号",
-    role: "平民",
-    alignment: "villagers",
+    role: "未知",
+    alignment: "unknown",
     avatar: ASSETS.avatars.villager,
     colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_3",
     name: "3号",
-    role: "狼人",
-    alignment: "werewolves",
-    avatar: ASSETS.avatars.werewolf,
-    colors: { bg: "#111827", text: "#F8FAFC", accent: "#F8FAFC" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_4",
     name: "4号",
-    role: "狼人",
-    alignment: "werewolves",
-    avatar: ASSETS.avatars.werewolf,
-    colors: { bg: "#111827", text: "#F8FAFC", accent: "#F8FAFC" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_5",
     name: "5号",
-    role: "狼人",
-    alignment: "werewolves",
-    avatar: ASSETS.avatars.werewolf,
-    colors: { bg: "#111827", text: "#F8FAFC", accent: "#F8FAFC" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_6",
     name: "6号",
-    role: "预言家",
-    alignment: "villagers",
-    avatar: ASSETS.avatars.seer,
-    colors: { bg: "#EEF2FF", text: "#3730A3", accent: "#3730A3" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_7",
     name: "7号",
-    role: "女巫",
-    alignment: "villagers",
-    avatar: ASSETS.avatars.witch,
-    colors: { bg: "#ECFEFF", text: "#0F766E", accent: "#0F766E" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_8",
     name: "8号",
-    role: "猎人",
-    alignment: "villagers",
-    avatar: ASSETS.avatars.hunter,
-    colors: { bg: "#FEF3C7", text: "#92400E", accent: "#92400E" }
+    role: "未知",
+    alignment: "unknown",
+    avatar: ASSETS.avatars.villager,
+    colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
   {
     id: "player_9",
     name: "9号",
-    role: "平民",
-    alignment: "villagers",
+    role: "未知",
+    alignment: "unknown",
     avatar: ASSETS.avatars.villager,
     colors: { bg: "#F8FAFC", text: "#111827", accent: "#111827" }
   },
 ];
+
+// Back-compat export (legacy imports). Live UI should pass agents via props.
+export const AGENTS = DEFAULT_AGENTS;
 
 // Message type colors (very subtle backgrounds)
 export const MESSAGE_COLORS = {
@@ -130,10 +133,11 @@ export const getAgentColors = (agentId, agentName) => {
 };
 
 // UI timing constants
-export const BUBBLE_LIFETIME_MS = 8000;
+export const BUBBLE_LIFETIME_MS = 3000;
 export const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 export const AXIS_TICKS = 5;
 
 // WebSocket configuration
-export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8765";
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/game";
 
