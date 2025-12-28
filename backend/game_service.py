@@ -63,7 +63,7 @@ def create_knowledge_store(player_model_map: dict[str, str]) -> PlayerKnowledgeS
     return store
 
 
-async def run_game_session(*, game_id: str, event_sink=None) -> tuple[str, str]:
+async def run_game_session(*, game_id: str, event_sink=None, stop_event=None) -> tuple[str, str]:
     """运行完整的一局游戏并返回 (log_path, experience_path)。"""
 
     is_valid, error_msg = config.validate()
@@ -79,6 +79,7 @@ async def run_game_session(*, game_id: str, event_sink=None) -> tuple[str, str]:
         player_model_map=player_model_map,
         game_id=game_id,
         event_sink=event_sink,
+        stop_event=stop_event,
     )
 
     return log_path, experience_path

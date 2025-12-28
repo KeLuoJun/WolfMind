@@ -337,6 +337,7 @@ async def werewolves_game(
     player_model_map: dict[str, str] | None = None,
     game_id: str | None = None,
     event_sink: Any | None = None,
+    stop_event: Any | None = None,
 ) -> tuple[str, str]:
     """狼人杀游戏的主入口
 
@@ -411,9 +412,18 @@ async def werewolves_game(
 
     game_status = "正常结束"
 
+    def _check_stop() -> None:
+        if stop_event is not None and getattr(stop_event, "is_set", None):
+            try:
+                if stop_event.is_set():
+                    raise asyncio.CancelledError()
+            except Exception:
+                return
+
     try:
         # 游戏开始！
         for round_num in range(1, MAX_GAME_ROUND + 1):
+            _check_stop()
             is_first_night = round_num == 1
             round_public_records: list[dict[str, Any]] = []
             # 开始新回合
@@ -427,6 +437,7 @@ async def werewolves_game(
             ) as alive_players_hub:
                 # 夜晚阶段
                 logger.start_night()
+                _check_stop()
                 await alive_players_hub.broadcast(
                     await moderator(Prompts.to_all_night),
                 )
@@ -448,6 +459,7 @@ async def werewolves_game(
                     # 讨论
                     n_werewolves = len(players.werewolves)
                     for _ in range(1, MAX_DISCUSSION_ROUND * n_werewolves + 1):
+                        _check_stop()
                         werewolf = players.werewolves[_ % n_werewolves]
                         context = _format_impression_context(
                             werewolf.name,
@@ -503,6 +515,7 @@ async def werewolves_game(
                 vote_prompt = await moderator(content=Prompts.to_wolves_vote)
                 wolf_votes_for_majority: list[str | None] = []
                 for werewolf in players.werewolves:
+                    _check_stop()
                     context = _format_impression_context(
                         werewolf.name,
                         players,
