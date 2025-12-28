@@ -24,21 +24,20 @@ export const SCENE_NATIVE = { width: 1248, height: 832 };
 
 // Seat positions (percentage relative to image, origin at bottom-left)
 // Format: { x: horizontal %, y: vertical % from bottom }
-export const AGENT_SEATS = [
-  // top edge
-  { x: 0.44, y: 0.58 },
-  { x: 0.55, y: 0.58 },
-  // upper left / upper right
-  { x: 0.33, y: 0.52 },
-  { x: 0.67, y: 0.52 },
-  // mid left / mid right
-  { x: 0.40, y: 0.44 },
-  { x: 0.60, y: 0.44 },
-  // lower left / lower / lower right
-  { x: 0.44, y: 0.36 },
-  { x: 0.50, y: 0.34 },
-  { x: 0.56, y: 0.36 },
-];
+// Use an ellipse so players sit evenly around the round table.
+export const AGENT_SEATS = Array.from({ length: 9 }, (_, i) => {
+  const n = 9;
+  // Start from the top and go clockwise
+  const theta = (-Math.PI / 2) + (i * (2 * Math.PI / n));
+  const cx = 0.50;
+  const cy = 0.46;
+  const rx = 0.20;
+  const ry = 0.14;
+  return {
+    x: cx + rx * Math.cos(theta),
+    y: cy + ry * Math.sin(theta),
+  };
+});
 
 // Players (kept as AGENTS to minimize code changes across existing components)
 export const DEFAULT_AGENTS = [
@@ -133,7 +132,7 @@ export const getAgentColors = (agentId, agentName) => {
 };
 
 // UI timing constants
-export const BUBBLE_LIFETIME_MS = 3000;
+export const BUBBLE_LIFETIME_MS = 5000;
 export const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 export const AXIS_TICKS = 5;
 

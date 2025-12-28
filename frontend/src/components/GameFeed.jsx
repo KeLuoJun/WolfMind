@@ -72,28 +72,41 @@ const renderMessageBody = (m) => {
 
   const hasStructured = Boolean(thought || behavior || speech);
   if (!hasStructured) {
-    return <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>{content}</div>;
+    return (
+      <div
+        style={{
+          fontSize: 11,
+          color: "#111827",
+          whiteSpace: "pre-wrap",
+          lineHeight: 1.6,
+          wordBreak: "break-word",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {content}
+      </div>
+    );
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {thought ? (
-        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap", lineHeight: 1.6, overflowWrap: "anywhere" }}>
           <span style={{ fontWeight: 800, color: "#111827" }}>心声：</span>{thought}
         </div>
       ) : null}
       {behavior ? (
-        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap" }}>
+        <div style={{ fontSize: 11, color: "#374151", whiteSpace: "pre-wrap", lineHeight: 1.6, overflowWrap: "anywhere" }}>
           <span style={{ fontWeight: 800, color: "#111827" }}>表现：</span>{behavior}
         </div>
       ) : null}
       {speech ? (
-        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>
+        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap", lineHeight: 1.6, overflowWrap: "anywhere" }}>
           <span style={{ fontWeight: 800, color: "#111827" }}>发言：</span>{speech}
         </div>
       ) : null}
       {!speech && content ? (
-        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap" }}>{content}</div>
+        <div style={{ fontSize: 11, color: "#111827", whiteSpace: "pre-wrap", lineHeight: 1.6, overflowWrap: "anywhere" }}>{content}</div>
       ) : null}
     </div>
   );

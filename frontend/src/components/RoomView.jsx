@@ -51,6 +51,21 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
+  const seatIndexForAgent = useCallback((agent, fallbackIdx) => {
+    const id = String(agent?.id || '');
+    const name = String(agent?.name || '');
+    let n = NaN;
+    if (id.startsWith('player_')) {
+      n = Number(id.slice(7));
+    }
+    if (!Number.isFinite(n)) {
+      const m = name.match(/(\d+)/);
+      if (m) n = Number(m[1]);
+    }
+    if (Number.isFinite(n) && n >= 1 && n <= 9) return n - 1;
+    return fallbackIdx ?? 0;
+  }, []);
+
   // Agent selection and hover state
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [hoveredAgent, setHoveredAgent] = useState(null);
@@ -471,19 +486,13 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
   }, []);
 
   // Get bubble for specific agent (supports both live and replay mode)
-  const getBubbleForAgent = useCallback((agentName) => {
+  const getBubbleForAgent = useCallback((agentId) => {
+    if (!agentId) return null;
     if (isReplaying) {
-      // Find replay bubble for this agent
-      const bubble = Object.values(replayBubbles).find(b => {
-        const agent = agents.find(a => a.id === b.agentId);
-        return agent && agent.name === agentName;
-      });
-      return bubble || null;
-    } else {
-      // Use normal bubbleFor function
-      return bubbleFor(agentName);
+      return Object.values(replayBubbles).find(b => b && b.agentId === agentId) || null;
     }
-  }, [isReplaying, replayBubbles, bubbleFor, agents]);
+    return bubbleFor(agentId);
+  }, [isReplaying, replayBubbles, bubbleFor]);
 
   return (
     <div className="room-view">
@@ -557,7 +566,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
 
             {/* Agents on seats (around the table) */}
             {agents.map((agent, idx) => {
-              const pos = AGENT_SEATS[idx] || AGENT_SEATS[0];
+              const seatIdx = seatIndexForAgent(agent, idx);
+              const pos = AGENT_SEATS[seatIdx] || AGENT_SEATS[0];
               const scaledWidth = SCENE_NATIVE.width * scale;
               const scaledHeight = SCENE_NATIVE.height * scale;
 
@@ -593,8 +603,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                       width: 44,
                       height: 44,
                       borderRadius: 999,
-                      border: '2px solid #000000',
-                      background: '#ffffff',
+                      border: '1px solid #000000',
+                      background: 'transparent',
                       boxShadow: isSpeaking ? '0 0 0 3px rgba(0, 0, 0, 0.15)' : 'none'
                     }}
                   />
@@ -618,7 +628,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
 
             {/* Speech Bubbles */}
             {agents.map((agent, idx) => {
-              const bubble = getBubbleForAgent(agent.name);
+              const bubble = getBubbleForAgent(agent.id);
               if (!bubble) return null;
 
               const bubbleKey = `${agent.id}_${bubble.timestamp || bubble.id || bubble.ts}`;
@@ -626,36 +636,20 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               // Check if bubble is hidden
               if (hiddenBubbles[bubbleKey]) return null;
 
-              const pos = AGENT_SEATS[idx] || AGENT_SEATS[0];
+              const seatIdx = seatIndexForAgent(agent, idx);
+              const pos = AGENT_SEATS[seatIdx] || AGENT_SEATS[0];
               const scaledWidth = SCENE_NATIVE.width * scale;
               const scaledHeight = SCENE_NATIVE.height * scale;
 
-              // Bubble left-bottom corner aligns to agent position
+              // Position wrapper centered on the agent seat, then place bubble above.
               const left = Math.round(pos.x * scaledWidth);
-              const bottom = Math.round(pos.y * scaledHeight);
+              const top = Math.round(scaledHeight - pos.y * scaledHeight);
 
               // Get agent data for model info
               const agentData = getAgentData(agent.id);
               const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
 
-              // Truncate long text - 200 collapsed, 500 expanded max
-              const maxLength = 200;
-              const maxExpandedLength = 500;
-              const isTruncated = bubble.text.length > maxLength;
-              const isExpanded = expandedBubbles[bubbleKey];
-              const displayText = (!isExpanded && isTruncated)
-                ? bubble.text.substring(0, maxLength) + '...'
-                : (isExpanded && bubble.text.length > maxExpandedLength)
-                  ? bubble.text.substring(0, maxExpandedLength) + '...'
-                  : bubble.text;
-
-              const toggleExpand = (e) => {
-                e.stopPropagation();
-                setExpandedBubbles(prev => ({
-                  ...prev,
-                  [bubbleKey]: !prev[bubbleKey]
-                }));
-              };
+              const displayText = bubble.text;
 
               const handleJumpToFeed = (e) => {
                 e.stopPropagation();
@@ -667,9 +661,15 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               return (
                 <div
                   key={agent.id}
-                  className="room-bubble"
-                  style={{ left, bottom }}
+                  style={{
+                    position: 'absolute',
+                    left,
+                    top: Math.max(0, top - 18),
+                    transform: 'translate(-50%, -100%)',
+                    zIndex: 25,
+                  }}
                 >
+                  <div className="room-bubble">
                   {/* Action buttons */}
                   <div className="bubble-action-buttons">
                     <button
@@ -705,14 +705,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                   {/* Message content */}
                   <div className="room-bubble-content">
                     {displayText}
-                    {isTruncated && (
-                      <button
-                        className="bubble-expand-btn"
-                        onClick={toggleExpand}
-                      >
-                        {isExpanded ? ' ↑' : ' ↓'}
-                      </button>
-                    )}
+                  </div>
                   </div>
                 </div>
               );

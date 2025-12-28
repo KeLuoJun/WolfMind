@@ -11,10 +11,8 @@ import { useFeedProcessor } from "./hooks/useFeedProcessor";
 
 const extractBubbleText = (content) => {
   const text = String(content || "");
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Preserve newlines; only strip model <think> blocks.
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 };
 
 export default function WolfMindApp() {
@@ -182,10 +180,32 @@ export default function WolfMindApp() {
     if (!msg || !msg.agentId) return;
 
     const agent = agentsRef.current?.find((a) => a.id === msg.agentId);
+    const hasStructured = Boolean(
+      String(msg.thought || '').trim() ||
+      String(msg.behavior || '').trim() ||
+      String(msg.speech || '').trim()
+    );
+
+    const lines = [];
+    if (hasStructured) {
+      if (String(msg.thought || '').trim()) {
+        lines.push(`(心声) ${extractBubbleText(msg.thought)}`);
+      }
+      if (String(msg.behavior || '').trim()) {
+        lines.push(`(表现) ${extractBubbleText(msg.behavior)}`);
+      }
+      const speechText = String(msg.speech || '').trim()
+        ? msg.speech
+        : (String(msg.content || '').trim() ? msg.content : '');
+      if (String(speechText || '').trim()) {
+        lines.push(`(发言) ${extractBubbleText(speechText)}`);
+      }
+    }
+
     const bubble = {
       agentId: msg.agentId,
       agentName: msg.agent || agent?.name,
-      text: extractBubbleText(msg.speech || msg.content),
+      text: hasStructured ? lines.join('\n') : extractBubbleText(msg.speech || msg.content),
       timestamp: msg.timestamp || Date.now(),
       ts: msg.timestamp || Date.now(),
       id: msg.id,
@@ -263,9 +283,10 @@ export default function WolfMindApp() {
       }
 
       const processed = processFeedEvent(evt);
-      // processed could be: conference object, message object, or feedItem
+      // Feed items are processed for the right panel, but bubbles should be driven by the raw event
+      // to avoid losing structured fields (thought/behavior/speech).
       if (evt.type === "agent_message" || evt.type === "conference_message") {
-        upsertBubbleFromMessage(processed);
+        upsertBubbleFromMessage(evt);
       }
     };
 
@@ -349,7 +370,7 @@ export default function WolfMindApp() {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
-        <div style={{ width: "70%", minWidth: 0, borderRight: "1px solid #e0e0e0" }}>
+        <div style={{ width: "60%", minWidth: 0, borderRight: "1px solid #e0e0e0" }}>
           <RoomView
             agents={agents}
             bubbles={bubbles}
@@ -359,7 +380,7 @@ export default function WolfMindApp() {
             onJumpToMessage={handleJumpToMessage}
           />
         </div>
-        <div style={{ width: "30%", minWidth: 320 }}>
+        <div style={{ width: "40%", minWidth: 360 }}>
           <GameFeed ref={feedRef} feed={feed} />
         </div>
       </div>

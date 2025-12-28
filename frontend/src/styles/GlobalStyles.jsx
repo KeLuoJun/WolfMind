@@ -666,7 +666,7 @@ export default function GlobalStyles() {
       }
 
       .room-bubble {
-        position: absolute;
+        position: relative;
         max-width: 300px;
         font-size: 11px;
         background: #ffffff;
