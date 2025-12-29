@@ -16,12 +16,13 @@ from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from pathlib import Path
 import threading
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import PlainTextResponse, Response, FileResponse
 from pydantic import BaseModel
 
 from game_service import run_game_session
@@ -144,6 +145,47 @@ class StatusResponse(BaseModel):
 def create_app() -> FastAPI:
     app = FastAPI(title="WolfMind API", version="0.1.0")
 
+    repo_root = Path(__file__).resolve().parents[1]
+    data_dir = repo_root / "data"
+    logs_dir = data_dir / "game_logs"
+    experiences_dir = data_dir / "experiences"
+
+    def _pick_latest_file(folder: Path, *, allowed_suffixes: tuple[str, ...]) -> Path | None:
+        try:
+            if not folder.exists() or not folder.is_dir():
+                return None
+            candidates = [p for p in folder.iterdir() if p.is_file(
+            ) and p.suffix.lower() in allowed_suffixes]
+            if not candidates:
+                return None
+            candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            return candidates[0]
+        except Exception:
+            return None
+
+    def _resolve_file(path_str: str | None, *, fallback_dir: Path, allowed_suffixes: tuple[str, ...]) -> Path:
+        # Prefer the runtime path if available; otherwise fall back to latest file under fallback_dir.
+        chosen: Path | None = None
+        if path_str:
+            p = Path(path_str)
+            chosen = (p if p.is_absolute() else (repo_root / p)).resolve()
+        if chosen is None or not chosen.exists() or not chosen.is_file():
+            chosen = _pick_latest_file(
+                fallback_dir, allowed_suffixes=allowed_suffixes)
+        if chosen is None:
+            raise HTTPException(
+                status_code=404, detail="No export file available")
+
+        # Safety: ensure resolved file stays within the expected directory.
+        allowed_root = fallback_dir.resolve()
+        chosen_resolved = chosen.resolve()
+        if allowed_root not in chosen_resolved.parents:
+            raise HTTPException(status_code=400, detail="Invalid export path")
+        if chosen_resolved.suffix.lower() not in allowed_suffixes:
+            raise HTTPException(
+                status_code=400, detail="Invalid export file type")
+        return chosen_resolved
+
     # 开发期 CORS（前端通常运行在 :5173）
     app.add_middleware(
         CORSMiddleware,
@@ -253,6 +295,30 @@ def create_app() -> FastAPI:
             logPath=runtime.log_path,
             experiencePath=runtime.experience_path,
             lastError=runtime.last_error,
+        )
+
+    @app.get("/api/exports/log")
+    async def export_latest_log() -> FileResponse:
+        with runtime.lock:
+            log_path = runtime.log_path
+        resolved = _resolve_file(
+            log_path, fallback_dir=logs_dir, allowed_suffixes=(".log", ".txt"))
+        return FileResponse(
+            path=str(resolved),
+            filename=resolved.name,
+            media_type="text/plain; charset=utf-8",
+        )
+
+    @app.get("/api/exports/experience")
+    async def export_latest_experience() -> FileResponse:
+        with runtime.lock:
+            exp_path = runtime.experience_path
+        resolved = _resolve_file(
+            exp_path, fallback_dir=experiences_dir, allowed_suffixes=(".json",))
+        return FileResponse(
+            path=str(resolved),
+            filename=resolved.name,
+            media_type="application/json",
         )
 
     @app.post("/api/game/start", response_model=StartGameResponse)
