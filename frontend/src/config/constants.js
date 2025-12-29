@@ -23,24 +23,24 @@ export const LLM_MODEL_LOGOS = {};
 // Scene dimensions (actual image size)
 export const SCENE_NATIVE = { width: 1248, height: 832 };
 
-// Seat positions (ratio relative to image size, origin at bottom-left)
+// Seat positions (ratio relative to scene size, origin at bottom-left)
 // Format: { x: 0..1, y: 0..1 from bottom }
-// Use an ellipse so players sit evenly around the round table.
-export const AGENT_SEATS = Array.from({ length: 9 }, (_, i) => {
-  const n = 9;
-  // Room background table center is roughly at (624, 300) in a 1248x832 scene.
-  // Since y is measured from the bottom in this UI, table center y ~= (832-300)/832 ~= 0.64.
-  // Start from the bottom (closest to viewer) and go clockwise.
-  const theta = (-Math.PI / 2) + (i * (2 * Math.PI / n));
-  const cx = 0.50;
-  const cy = 0.64;
-  const rx = 0.235;
-  const ry = 0.145;
-  return {
-    x: cx + rx * Math.cos(theta),
-    y: cy + ry * Math.sin(theta),
-  };
-});
+// UX: players sit on two sides (left: 5 players, right: 4 players).
+// Seat index maps to player number-1 (player_1 -> index 0, ..., player_9 -> index 8).
+export const AGENT_SEATS = [
+  // Left side (5) - slightly closer to edge, more vertical spacing
+  { x: 0.09, y: 0.82 }, // 1
+  { x: 0.09, y: 0.65 }, // 2
+  { x: 0.09, y: 0.48 }, // 3
+  { x: 0.09, y: 0.31 }, // 4
+  { x: 0.09, y: 0.14 }, // 5
+
+  // Right side (4) - leave top-right space for sun/moon
+  { x: 0.91, y: 0.58 }, // 6
+  { x: 0.91, y: 0.41 }, // 7
+  { x: 0.91, y: 0.24 }, // 8
+  { x: 0.91, y: 0.07 }, // 9
+];
 
 // Players (kept as AGENTS to minimize code changes across existing components)
 export const DEFAULT_AGENTS = [

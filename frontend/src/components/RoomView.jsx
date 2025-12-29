@@ -1,34 +1,175 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ASSETS, SCENE_NATIVE, AGENT_SEATS } from '../config/constants';
+import { SCENE_NATIVE, AGENT_SEATS } from '../config/constants';
 import AgentCard from './AgentCard';
 import { getModelIcon } from '../utils/modelIcons';
 
 /**
  * Custom hook to load an image
  */
-function useImage(src) {
-  const [img, setImg] = useState(null);
-  useEffect(() => {
-    if (!src) {
-      setImg(null);
-      return;
+function clamp01(n) {
+  return Math.max(0, Math.min(1, n));
+}
+
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function drawRoomBackground(ctx, mode) {
+  const w = SCENE_NATIVE.width;
+  const h = SCENE_NATIVE.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Base sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  if (mode === 'day') {
+    sky.addColorStop(0, '#F0F4FF');
+    sky.addColorStop(0.4, '#FFFFFF');
+    sky.addColorStop(1, '#E2E8F0');
+  } else {
+    sky.addColorStop(0, '#020617');
+    sky.addColorStop(0.5, '#0F172A');
+    sky.addColorStop(1, '#020617');
+  }
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  // Stars for night mode
+  if (mode === 'night') {
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    for (let i = 0; i < 220; i++) {
+      const x = (i * 1337) % w;
+      const y = (i * 7331) % Math.round(h * 0.62);
+      const big = i % 17 === 0;
+      const size = big ? 1.8 : (i % 3 === 0 ? 1.1 : 0.7);
+      ctx.globalAlpha = big ? 0.55 : (0.14 + (Math.sin(i) + 1) * 0.18);
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+      if (big) {
+        ctx.globalAlpha = 0.12;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 5.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-    // Reset image state when backend changes
-    setImg(null);
-    const image = new Image();
-    image.src = src;
-    image.onload = () => setImg(image);
-    image.onerror = () => {
-      console.error(`Failed to load image: ${src}`);
-      setImg(null);
-    };
-    // Cleanup: cancel loading if backend changes
-    return () => {
-      image.onload = null;
-      image.onerror = null;
-    };
-  }, [src]);
-  return img;
+    ctx.restore();
+  }
+
+  // Aurora / soft indigo glow
+  if (mode === 'night') {
+    ctx.save();
+    const aurora = ctx.createLinearGradient(0, 0, w, 0);
+    aurora.addColorStop(0.05, 'rgba(97, 92, 237, 0.00)');
+    aurora.addColorStop(0.28, 'rgba(97, 92, 237, 0.10)');
+    aurora.addColorStop(0.55, 'rgba(97, 92, 237, 0.04)');
+    aurora.addColorStop(0.82, 'rgba(97, 92, 237, 0.08)');
+    aurora.addColorStop(0.95, 'rgba(97, 92, 237, 0.00)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = aurora;
+    ctx.fillRect(0, 0, w, Math.round(h * 0.62));
+    ctx.restore();
+  }
+
+  // Subtle horizon glow / vignette
+  const vignette = ctx.createRadialGradient(w * 0.5, h * 0.5, 100, w * 0.5, h * 0.5, w * 0.8);
+  if (mode === 'day') {
+    vignette.addColorStop(0, 'rgba(97, 92, 237, 0.05)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.02)');
+  } else {
+    vignette.addColorStop(0, 'rgba(97, 92, 237, 0.08)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+  }
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
+  // Decorative grid lines (very subtle)
+  ctx.save();
+  ctx.globalAlpha = mode === 'day' ? 0.03 : 0.06;
+  ctx.strokeStyle = mode === 'day' ? '#64748B' : '#94A3B8';
+  ctx.lineWidth = 1;
+  const step = 80;
+  for (let x = 0; x <= w; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(w, y + 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Floor
+  const floorTop = Math.round(h * 0.65);
+  const floor = ctx.createLinearGradient(0, floorTop, 0, h);
+  if (mode === 'day') {
+    floor.addColorStop(0, 'rgba(226, 232, 240, 0.4)');
+    floor.addColorStop(1, 'rgba(203, 213, 225, 0.6)');
+  } else {
+    floor.addColorStop(0, 'rgba(15, 23, 42, 0.5)');
+    floor.addColorStop(1, 'rgba(2, 6, 23, 0.8)');
+  }
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, floorTop, w, h - floorTop);
+
+  // Central stage panel (Removed border as requested)
+  const panelW = Math.round(w * 0.65);
+  const panelH = Math.round(h * 0.5);
+  const panelX = Math.round((w - panelW) / 2);
+  const panelY = Math.round(h * 0.15);
+
+  ctx.save();
+  ctx.globalAlpha = mode === 'day' ? 0.4 : 0.2;
+  ctx.fillStyle = mode === 'day' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.05)';
+  drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 30);
+  ctx.fill();
+  // Removed ctx.stroke() to delete the border between sides
+  ctx.restore();
+
+  // Accent corner marks (terminal-ish)
+  ctx.save();
+  ctx.globalAlpha = mode === 'day' ? 0.2 : 0.4;
+  ctx.strokeStyle = '#615CED';
+  ctx.lineWidth = 2;
+  const m = 20;
+  const corner = 30;
+  // TL
+  ctx.beginPath();
+  ctx.moveTo(panelX + m, panelY + corner);
+  ctx.lineTo(panelX + m, panelY + m);
+  ctx.lineTo(panelX + corner, panelY + m);
+  ctx.stroke();
+  // TR
+  ctx.beginPath();
+  ctx.moveTo(panelX + panelW - m, panelY + corner);
+  ctx.lineTo(panelX + panelW - m, panelY + m);
+  ctx.lineTo(panelX + panelW - corner, panelY + m);
+  ctx.stroke();
+  // BL
+  ctx.beginPath();
+  ctx.moveTo(panelX + m, panelY + panelH - corner);
+  ctx.lineTo(panelX + m, panelY + panelH - m);
+  ctx.lineTo(panelX + corner, panelY + panelH - m);
+  ctx.stroke();
+  // BR
+  ctx.beginPath();
+  ctx.moveTo(panelX + panelW - m, panelY + panelH - corner);
+  ctx.lineTo(panelX + panelW - m, panelY + panelH - m);
+  ctx.lineTo(panelX + panelW - corner, panelY + panelH - m);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /**
@@ -105,12 +246,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
   const replayTimeoutsRef = useRef([]);
   const replayStateRef = useRef({ messages: [], currentIndex: 0 });
 
-  // Background images (day/night)
-  const roomBgNightSrc = ASSETS.roomBg;
-  const roomBgDaySrc = ASSETS.roomBgDay || ASSETS.roomBg;
-
-  const bgNightImg = useImage(roomBgNightSrc);
-  const bgDayImg = useImage(roomBgDaySrc);
+  // Background is drawn procedurally on canvas (no static background images).
 
   // Calculate scale to fit canvas in container (maximize visible scene)
   const [scale, setScale] = useState(1.0);
@@ -167,14 +303,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    // Clear canvas first
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw image if loaded
-    if (bgNightImg) {
-      ctx.drawImage(bgNightImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
-    }
-  }, [bgNightImg, scale, roomBgNightSrc]);
+    drawRoomBackground(ctx, 'night');
+  }, [scale]);
 
   // Draw room background (day)
   useEffect(() => {
@@ -184,11 +314,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (bgDayImg) {
-      ctx.drawImage(bgDayImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
-    }
-  }, [bgDayImg, scale, roomBgDaySrc]);
+    drawRoomBackground(ctx, 'day');
+  }, [scale]);
 
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
@@ -584,7 +711,10 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
       {/* Room Canvas */}
       <div className="room-canvas-container" ref={containerRef}>
           <div className="room-scene">
-          <div className="room-scene-wrapper" style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
+          <div
+            className={`room-scene-wrapper ${sceneMode === 'day' ? 'is-day' : 'is-night'}`}
+            style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}
+          >
             <div
               style={{
                 position: 'absolute',
@@ -617,6 +747,12 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                   transition: 'opacity 520ms ease',
                 }}
               />
+            </div>
+
+            {/* Celestial overlay (sun/moon), animates on day/night switch */}
+            <div className="room-celestial-layer" aria-hidden="true">
+              <div className="room-celestial room-celestial-sun" />
+              <div className="room-celestial room-celestial-moon" />
             </div>
 
             {/* Agents on seats (around the table) */}
@@ -655,24 +791,26 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     src={agent.avatar}
                     alt={agent.name}
                     style={{
-                      width: 56,
-                      height: 56,
+                      width: 60,
+                      height: 60,
                       borderRadius: 999,
-                      border: '1px solid #000000',
-                      background: 'transparent',
-                      boxShadow: isSpeaking ? '0 0 0 3px rgba(0, 0, 0, 0.15)' : 'none'
+                      border: '2px solid #000000',
+                      background: 'rgba(255, 255, 255, 0.10)',
+                      boxShadow: isSpeaking ? '0 0 0 4px rgba(97, 92, 237, 0.35)' : '0 4px 10px rgba(0, 0, 0, 0.10)'
                     }}
                   />
                   <div
                     style={{
                       fontSize: 12,
+                      fontWeight: 800,
                       fontFamily: 'IBM Plex Mono, monospace',
                       background: '#ffffff',
-                      border: '1px solid #000000',
-                      padding: '2px 6px',
+                      border: '2px solid #000000',
+                      padding: '2px 7px',
                       borderRadius: 4,
                       lineHeight: 1,
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      boxShadow: '2px 2px 0 0 rgba(0,0,0,0.1)'
                     }}
                   >
                     {agent.name}
@@ -700,6 +838,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               const left = Math.round(pos.x * scaledWidth);
               const top = Math.round(scaledHeight - pos.y * scaledHeight);
 
+              const isLeftSide = pos.x < 0.5;
+
               // Get agent data for model info
               const agentData = getAgentData(agent.id);
               const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
@@ -719,12 +859,20 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                   style={{
                     position: 'absolute',
                     left,
-                    top: Math.max(0, top - 30),
-                    transform: 'translate(-50%, -100%)',
+                    top,
+                    transform: 'translate(-50%, -50%)',
                     zIndex: 25,
                   }}
                 >
-                  <div className="room-bubble">
+                  <div
+                    className={`room-bubble ${isLeftSide ? 'room-bubble--left' : 'room-bubble--right'}`}
+                    style={{
+                      position: 'absolute',
+                      top: -88,
+                      left: isLeftSide ? 70 : 'auto',
+                      right: isLeftSide ? 'auto' : 70,
+                    }}
+                  >
                   {/* Action buttons */}
                   <div className="bubble-action-buttons">
                     <button

@@ -586,6 +586,116 @@ export default function GlobalStyles() {
         position: relative;
       }
 
+      .room-celestial-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 12; /* above canvas, below agents/bubbles */
+      }
+
+      .room-celestial {
+        position: absolute;
+        width: 118px;
+        height: 118px;
+        border-radius: 999px;
+        transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
+        will-change: transform, opacity;
+        transform-style: preserve-3d;
+      }
+
+      .room-celestial-sun {
+        left: 34px;
+        top: 32px;
+        background: radial-gradient(circle at 30% 30%, #FFF9C4 0%, #FFD54F 30%, #F57C00 70%, #E65100 100%);
+        border: 3px solid #000000;
+        box-shadow:
+          0 22px 40px rgba(0, 0, 0, 0.18),
+          0 0 48px rgba(255, 167, 38, 0.35),
+          inset -14px -18px 26px rgba(0,0,0,0.18),
+          inset 12px 10px 18px rgba(255,255,255,0.22);
+        opacity: 0;
+        transform: translateX(-260px) rotate(-180deg);
+      }
+
+      .room-celestial-sun::before {
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 28% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.22) 28%, rgba(255,255,255,0) 62%);
+        transform: translateZ(1px);
+        pointer-events: none;
+      }
+
+      .room-celestial-sun::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.18) 100%);
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      .room-celestial-moon {
+        right: 34px;
+        top: 32px;
+        background: radial-gradient(circle at 30% 30%, #F8FAFC 0%, #E2E8F0 40%, #94A3B8 80%, #475569 100%);
+        border: 3px solid #F8FAFC;
+        box-shadow:
+          0 22px 40px rgba(0, 0, 0, 0.22),
+          0 0 44px rgba(148, 163, 184, 0.22),
+          inset -16px -18px 28px rgba(0,0,0,0.35),
+          inset 10px 10px 18px rgba(255,255,255,0.16);
+        opacity: 0;
+        transform: translateX(260px) rotate(180deg);
+      }
+
+      .room-celestial-moon::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: radial-gradient(circle at 28% 26%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 35%, rgba(0,0,0,0) 64%);
+        pointer-events: none;
+      }
+
+      /* Add some "craters" to the moon using pseudo-elements if possible, or just better gradient */
+      .room-celestial-moon::before {
+        content: "";
+        position: absolute;
+        top: 20%;
+        left: 25%;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.05);
+        box-shadow: 40px 30px 0 -4px rgba(0,0,0,0.05), 10px 60px 0 -2px rgba(0,0,0,0.05);
+      }
+
+      .room-scene-wrapper.is-day .room-celestial-sun {
+        opacity: 1;
+        transform: translateX(0) rotate(0deg);
+      }
+
+      .room-scene-wrapper.is-day .room-celestial-moon {
+        opacity: 0;
+        transform: translateX(280px) rotate(180deg);
+      }
+
+      .room-scene-wrapper.is-night .room-celestial-moon {
+        opacity: 1;
+        transform: translateX(0) rotate(0deg);
+      }
+
+      .room-scene-wrapper.is-night .room-celestial-sun {
+        opacity: 0;
+        transform: translateX(-280px) rotate(-180deg);
+      }
+
       @keyframes pulse {
         0%, 100% {
           box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
@@ -667,13 +777,15 @@ export default function GlobalStyles() {
 
       .room-bubble {
         position: relative;
-        max-width: 300px;
-        font-size: 11px;
-        background: #ffffff;
+        width: clamp(320px, 44vw, 560px);
+        max-width: 560px;
+        font-size: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
         color: #000000;
-        padding: 10px 12px;
+        padding: 12px 14px;
         border: 2px solid #000000;
-        box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        box-shadow: 8px 10px 0 0 rgba(0, 0, 0, 0.10);
         font-family: 'IBM Plex Mono', monospace;
         line-height: 1.5;
         animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -695,12 +807,22 @@ export default function GlobalStyles() {
         position: absolute;
         left: 12px;
         bottom: -8px;
-        width: 10px;
-        height: 10px;
-        background: #ffffff;
+        width: 12px;
+        height: 12px;
+        background: #fafafa;
         border-left: 2px solid #000000;
         border-bottom: 2px solid #000000;
         transform: rotate(-45deg);
+      }
+
+      /* Bubble tail points toward the speaker (left/right columns) */
+      .room-bubble.room-bubble--right::after {
+        left: auto;
+        right: 12px;
+        border-left: none;
+        border-right: 2px solid #000000;
+        border-bottom: 2px solid #000000;
+        transform: rotate(45deg);
       }
 
       .bubble-action-buttons {
@@ -771,7 +893,7 @@ export default function GlobalStyles() {
 
       .room-bubble-name {
         font-weight: 900;
-        font-size: 10px;
+        font-size: 11px;
         letter-spacing: 0.5px;
         color: #000000;
         flex: 1;
@@ -786,6 +908,8 @@ export default function GlobalStyles() {
       .room-bubble-content {
         word-wrap: break-word;
         white-space: pre-wrap;
+        font-size: 12px;
+        line-height: 1.7;
         position: relative;
       }
 
