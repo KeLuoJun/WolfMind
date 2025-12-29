@@ -573,6 +573,85 @@ export default function GlobalStyles() {
         opacity: 0.7;
       }
 
+      .room-insights-popover {
+        position: absolute;
+        top: calc(100% + 12px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(560px, calc(100vw - 24px));
+        max-height: 60vh;
+        overflow: auto;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 2px solid #000000;
+        background: #ffffff;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+        z-index: 1200;
+      }
+
+      .room-insights-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 900;
+        letter-spacing: 0.6px;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+
+      .room-insights-section {
+        margin-top: 10px;
+      }
+
+      .room-insights-section-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 800;
+        font-size: 11px;
+        opacity: 0.8;
+        margin-bottom: 6px;
+      }
+
+      .room-insights-empty {
+        font-size: 12px;
+        opacity: 0.75;
+        line-height: 1.4;
+      }
+
+      .room-insights-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .room-insights-row {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .room-insights-key {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 800;
+        font-size: 11px;
+        padding: 6px 8px;
+        border: 2px solid #000000;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.04);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .room-insights-val {
+        font-size: 12px;
+        line-height: 1.45;
+        padding-top: 4px;
+      }
+
+      .room-insights-text {
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
       .agent-card-overlay {
         position: fixed;
         top: 0;

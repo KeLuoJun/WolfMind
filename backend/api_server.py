@@ -16,7 +16,9 @@ from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+import json
 from pathlib import Path
+import re
 import threading
 from typing import Any
 
@@ -142,6 +144,18 @@ class StatusResponse(BaseModel):
     lastError: str | None = None
 
 
+class PlayerInsight(BaseModel):
+    impressions: dict[str, str] = {}
+    knowledge: str = ""
+
+
+class PlayersInsightsResponse(BaseModel):
+    updatedAt: str
+    logSource: str | None = None
+    experienceSource: str | None = None
+    players: dict[str, PlayerInsight] = {}
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="WolfMind API", version="0.1.0")
 
@@ -185,6 +199,114 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=400, detail="Invalid export file type")
         return chosen_resolved
+
+    def _normalize_player_id(name: str | None) -> str | None:
+        if not name:
+            return None
+        raw = str(name).strip()
+        low = raw.lower()
+        if low.startswith("player"):
+            suffix = raw[6:]
+            if suffix.isdigit():
+                return f"player_{int(suffix)}"
+        return raw
+
+    _REFLECTION_HEADER_RE = re.compile(
+        r"^\[(\d{2}:\d{2}:\d{2})\]\s+\[第(\d+)回合-反思\]\s+(.+?)\s*$")
+    _FIELD_LINE_RE = re.compile(r"^\s+\((思考|印象)\)\s+(.*)$")
+
+    def _parse_latest_impressions(log_file: Path) -> dict[str, dict[str, str]]:
+        """Parse the latest reflections in a log file.
+
+        Returns: {player_id: {other_player_id: impression_text}}
+        """
+        try:
+            lines = log_file.read_text(
+                encoding="utf-8", errors="ignore").splitlines()
+        except Exception:
+            return {}
+
+        out: dict[str, dict[str, str]] = {}
+        i = 0
+        while i < len(lines):
+            m = _REFLECTION_HEADER_RE.match(lines[i])
+            if not m:
+                i += 1
+                continue
+
+            player_raw = m.group(3).strip()
+            player_id = _normalize_player_id(player_raw)
+            if not player_id:
+                i += 1
+                continue
+
+            current_field: str | None = None
+            thought_lines: list[str] = []
+            impression_lines: list[str] = []
+
+            i += 1
+            # Consume until blank line or file end.
+            while i < len(lines) and lines[i].strip() != "":
+                line = lines[i].rstrip("\n")
+                fm = _FIELD_LINE_RE.match(line)
+                if fm:
+                    current_field = fm.group(1)
+                    payload = fm.group(2).strip()
+                    if current_field == "思考":
+                        thought_lines = [payload] if payload else []
+                    elif current_field == "印象":
+                        impression_lines = [payload] if payload else []
+                else:
+                    # Continuation lines are aligned with spaces; keep content trimmed.
+                    if current_field == "思考":
+                        thought_lines.append(line.strip())
+                    elif current_field == "印象":
+                        impression_lines.append(line.strip())
+                i += 1
+
+            # Extract impression map
+            imp_map: dict[str, str] = {}
+            for raw_line in impression_lines:
+                s = (raw_line or "").strip()
+                if not s or s in ("(无更新)", "(暂无)"):
+                    continue
+                if ":" not in s:
+                    continue
+                k, v = s.split(":", 1)
+                other_id = _normalize_player_id(k.strip())
+                if not other_id:
+                    continue
+                imp_map[other_id] = v.strip()
+
+            # Keep the latest occurrence for each player (later blocks override earlier ones)
+            out[player_id] = imp_map
+
+            # Skip the blank line
+            i += 1
+
+        return out
+
+    def _load_experience_knowledge(exp_file: Path) -> dict[str, str]:
+        """Load player knowledge from experience JSON.
+
+        Returns: {player_id: knowledge_text}
+        """
+        try:
+            data = json.loads(exp_file.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+        players = data.get("players", {}) if isinstance(data, dict) else {}
+        if not isinstance(players, dict):
+            return {}
+
+        out: dict[str, str] = {}
+        for k, v in players.items():
+            pid = _normalize_player_id(str(k))
+            if not pid:
+                continue
+            out[pid] = str(v or "")
+        return out
 
     # 开发期 CORS（前端通常运行在 :5173）
     app.add_middleware(
@@ -319,6 +441,42 @@ def create_app() -> FastAPI:
             path=str(resolved),
             filename=resolved.name,
             media_type="application/json",
+        )
+
+    @app.get("/api/players/insights", response_model=PlayersInsightsResponse)
+    async def get_players_insights() -> PlayersInsightsResponse:
+        """Return per-player insights for the UI hover popover.
+
+        - impressions: parsed from latest log reflection blocks
+        - knowledge: loaded from latest experience JSON
+        """
+        with runtime.lock:
+            log_path = runtime.log_path
+            exp_path = runtime.experience_path
+
+        resolved_log = _resolve_file(
+            log_path, fallback_dir=logs_dir, allowed_suffixes=(".log", ".txt"))
+        resolved_exp = _resolve_file(
+            exp_path, fallback_dir=experiences_dir, allowed_suffixes=(".json",))
+
+        impressions_by_player = _parse_latest_impressions(resolved_log)
+        knowledge_by_player = _load_experience_knowledge(resolved_exp)
+
+        # Merge keys
+        players: dict[str, PlayerInsight] = {}
+        keys = set(impressions_by_player.keys()) | set(
+            knowledge_by_player.keys())
+        for pid in keys:
+            players[pid] = PlayerInsight(
+                impressions=impressions_by_player.get(pid, {}),
+                knowledge=knowledge_by_player.get(pid, ""),
+            )
+
+        return PlayersInsightsResponse(
+            updatedAt=datetime.now().isoformat(),
+            logSource=str(resolved_log.name),
+            experienceSource=str(resolved_exp.name),
+            players=players,
         )
 
     @app.post("/api/game/start", response_model=StartGameResponse)

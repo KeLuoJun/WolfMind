@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { SCENE_NATIVE, AGENT_SEATS } from '../config/constants';
+import { SCENE_NATIVE, AGENT_SEATS, API_URL } from '../config/constants';
 import AgentCard from './AgentCard';
 import { getModelIcon } from '../utils/modelIcons';
+
+const INSIGHTS_CACHE_TTL_MS = 10_000;
 
 /**
  * Custom hook to load an image
@@ -218,9 +220,38 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
   // Agent selection and hover state
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [hoveredAgent, setHoveredAgent] = useState(null);
+  const [hoveredTopAgentId, setHoveredTopAgentId] = useState(null);
+  const [playersInsights, setPlayersInsights] = useState(null);
+  const [playersInsightsError, setPlayersInsightsError] = useState(null);
+  const insightsCacheRef = useRef({ at: 0, data: null });
   const [isClosing, setIsClosing] = useState(false);
   const hoverTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
+
+  const fetchPlayersInsights = useCallback(async () => {
+    const now = Date.now();
+    if (
+      insightsCacheRef.current.data &&
+      now - insightsCacheRef.current.at < INSIGHTS_CACHE_TTL_MS
+    ) {
+      return insightsCacheRef.current.data;
+    }
+
+    try {
+      setPlayersInsightsError(null);
+      const res = await fetch(`${API_URL}/api/players/insights`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      insightsCacheRef.current = { at: now, data };
+      setPlayersInsights(data);
+      return data;
+    } catch (e) {
+      const msg = e?.message || 'Failed to load insights';
+      setPlayersInsightsError(msg);
+      setPlayersInsights(null);
+      return null;
+    }
+  }, []);
 
   // Bubble expansion state
   const [expandedBubbles, setExpandedBubbles] = useState({});
@@ -402,21 +433,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
     }
     setIsClosing(false);
 
-    // If there's already a selected agent, switch immediately
-    // Otherwise, show after a short delay (0ms = immediate)
-    const agentData = getAgentData(agentId);
-    if (agentData) {
-      if (selectedAgent) {
-        // Already have a card open, switch immediately
-        setSelectedAgent(agentData);
-      } else {
-        // No card open, show after delay (currently 0ms = immediate)
-        hoverTimerRef.current = setTimeout(() => {
-          setSelectedAgent(agentData);
-          hoverTimerRef.current = null;
-        }, 0);
-      }
-    }
+    // NOTE: AgentCard is click-only; hover only highlights.
   };
 
   const handleAgentMouseLeave = () => {
@@ -427,6 +444,17 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
       hoverTimerRef.current = null;
     }
   };
+
+  const handleTopAgentMouseEnter = useCallback(async (agentId) => {
+    setHoveredAgent(agentId);
+    setHoveredTopAgentId(agentId);
+    await fetchPlayersInsights();
+  }, [fetchPlayersInsights]);
+
+  const handleTopAgentMouseLeave = useCallback(() => {
+    setHoveredAgent(null);
+    setHoveredTopAgentId(null);
+  }, []);
 
   // Handle closing with animation
   const handleClose = () => {
@@ -659,8 +687,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               <div
                 className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''} ${hoveredAgent === agent.id ? 'hovered' : ''}`}
                 onClick={() => handleAgentClick(agent.id)}
-                onMouseEnter={() => handleAgentMouseEnter(agent.id)}
-                onMouseLeave={handleAgentMouseLeave}
+                onMouseEnter={() => handleTopAgentMouseEnter(agent.id)}
+                onMouseLeave={handleTopAgentMouseLeave}
               >
                 <div className="agent-avatar-wrapper">
                   <img
@@ -706,6 +734,56 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
         <div className="agent-hint-text">
           点击头像查看身份信息
         </div>
+
+        {hoveredTopAgentId && (
+          <div className="room-insights-popover" role="dialog" aria-label="Player insights">
+            <div className="room-insights-title">
+              {agents.find(a => a.id === hoveredTopAgentId)?.name || hoveredTopAgentId}
+            </div>
+
+            {playersInsightsError ? (
+              <div className="room-insights-empty">{playersInsightsError}</div>
+            ) : !playersInsights ? (
+              <div className="room-insights-empty">Loading…</div>
+            ) : (
+              (() => {
+                const p = playersInsights.players?.[hoveredTopAgentId];
+                const impressions = p?.impressions || {};
+                const knowledge = String(p?.knowledge || '').trim();
+                const impressionEntries = Object.entries(impressions).filter(([, v]) => String(v || '').trim().length > 0);
+
+                return (
+                  <>
+                    <div className="room-insights-section">
+                      <div className="room-insights-section-title">对其他玩家的影响</div>
+                      {impressionEntries.length === 0 ? (
+                        <div className="room-insights-empty">暂无影响。</div>
+                      ) : (
+                        <div className="room-insights-list">
+                          {impressionEntries.map(([other, text]) => (
+                            <div className="room-insights-row" key={other}>
+                              <div className="room-insights-key">{other}</div>
+                              <div className="room-insights-val">{text}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="room-insights-section">
+                      <div className="room-insights-section-title">学习到的经验</div>
+                      {knowledge ? (
+                        <div className="room-insights-text">{knowledge}</div>
+                      ) : (
+                        <div className="room-insights-empty">暂无学习到的经验。</div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()
+            )}
+          </div>
+        )}
       </div>
 
       {/* Room Canvas */}
