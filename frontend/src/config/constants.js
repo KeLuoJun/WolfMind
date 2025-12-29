@@ -22,17 +22,19 @@ export const LLM_MODEL_LOGOS = {};
 // Scene dimensions (actual image size)
 export const SCENE_NATIVE = { width: 1248, height: 832 };
 
-// Seat positions (percentage relative to image, origin at bottom-left)
-// Format: { x: horizontal %, y: vertical % from bottom }
+// Seat positions (ratio relative to image size, origin at bottom-left)
+// Format: { x: 0..1, y: 0..1 from bottom }
 // Use an ellipse so players sit evenly around the round table.
 export const AGENT_SEATS = Array.from({ length: 9 }, (_, i) => {
   const n = 9;
-  // Start from the top and go clockwise
+  // Room background table center is roughly at (624, 300) in a 1248x832 scene.
+  // Since y is measured from the bottom in this UI, table center y ~= (832-300)/832 ~= 0.64.
+  // Start from the bottom (closest to viewer) and go clockwise.
   const theta = (-Math.PI / 2) + (i * (2 * Math.PI / n));
   const cx = 0.50;
-  const cy = 0.46;
-  const rx = 0.20;
-  const ry = 0.14;
+  const cy = 0.64;
+  const rx = 0.19;
+  const ry = 0.12;
   return {
     x: cx + rx * Math.cos(theta),
     y: cy + ry * Math.sin(theta),
