@@ -467,6 +467,7 @@ export default function WolfMindApp() {
             bubbleFor={bubbleFor}
             leaderboard={[]}
             feed={feed}
+            phaseText={phaseText}
             onJumpToMessage={handleJumpToMessage}
           />
         </div>

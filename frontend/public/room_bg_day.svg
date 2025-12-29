@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1248" height="832" viewBox="0 0 1248 832" role="img" aria-label="Werewolf room (day)">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9eef7"/>
+      <stop offset="1" stop-color="#cfd8ea"/>
+    </linearGradient>
+    <radialGradient id="light" cx="78%" cy="18%" r="46%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c7d2e6"/>
+      <stop offset="1" stop-color="#aebbd6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1248" height="832" fill="url(#bg)"/>
+
+  <!-- daylight window glow -->
+  <circle cx="970" cy="150" r="300" fill="url(#light)"/>
+
+  <!-- isometric room frame (lighter) -->
+  <path d="M180 210 L624 70 L1068 210 L624 370 Z" fill="#b9c6de" opacity="0.70"/>
+  <path d="M180 210 L180 560 L624 720 L624 370 Z" fill="#c4d0e6" opacity="0.86"/>
+  <path d="M1068 210 L1068 560 L624 720 L624 370 Z" fill="#aebbd6" opacity="0.86"/>
+
+  <!-- floor -->
+  <path d="M220 260 L624 120 L1028 260 L624 410 Z" fill="url(#floor)" opacity="0.96"/>
+
+  <!-- table (same geometry as night) -->
+  <ellipse cx="624" cy="305" rx="190" ry="80" fill="#7b879d" opacity="0.45"/>
+  <ellipse cx="624" cy="300" rx="182" ry="74" fill="#8793a9" opacity="0.52"/>
+  <ellipse cx="624" cy="294" rx="174" ry="68" fill="#9aa6bc" opacity="0.55"/>
+
+  <!-- candles (dim in daylight) -->
+  <g opacity="0.55">
+    <rect x="600" y="250" width="10" height="34" rx="4" fill="#6b7280"/>
+    <path d="M605 240 C598 248 602 256 605 258 C608 256 612 248 605 240" fill="#f59e0b"/>
+  </g>
+
+  <!-- subtle grid/tech lines -->
+  <g stroke="#64748b" stroke-width="2" opacity="0.18">
+    <path d="M260 330 L624 200 L988 330"/>
+    <path d="M260 420 L624 290 L988 420"/>
+    <path d="M420 250 L420 520"/>
+    <path d="M828 250 L828 520"/>
+  </g>
+
+  <!-- label -->
+  <text x="60" y="110" fill="#111827" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="28" opacity="0.55">WOLFMIND · WEREWOLF</text>
+</svg>

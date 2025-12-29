@@ -29,10 +29,10 @@
   <!-- floor -->
   <path d="M220 260 L624 120 L1028 260 L624 410 Z" fill="url(#floor)" opacity="0.95"/>
 
-  <!-- table -->
-  <ellipse cx="624" cy="305" rx="150" ry="64" fill="#0b1220" opacity="0.9"/>
-  <ellipse cx="624" cy="300" rx="144" ry="58" fill="#111827" opacity="0.9"/>
-  <ellipse cx="624" cy="294" rx="138" ry="54" fill="#1f2937" opacity="0.9"/>
+  <!-- table (slightly larger to reduce empty space) -->
+  <ellipse cx="624" cy="305" rx="190" ry="80" fill="#0b1220" opacity="0.9"/>
+  <ellipse cx="624" cy="300" rx="182" ry="74" fill="#111827" opacity="0.9"/>
+  <ellipse cx="624" cy="294" rx="174" ry="68" fill="#1f2937" opacity="0.9"/>
 
   <!-- candles -->
   <g opacity="0.9">

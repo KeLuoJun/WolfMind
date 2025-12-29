@@ -5,7 +5,8 @@
 
 export const ASSETS = {
   logo: "/wolfmind_logo.svg",
-  roomBg: "/room_bg.svg",
+  roomBg: "/room_bg_night.svg",
+  roomBgDay: "/room_bg_day.svg",
   avatars: {
     villager: "/avatars/villager.svg",
     werewolf: "/avatars/werewolf.svg",
@@ -33,8 +34,8 @@ export const AGENT_SEATS = Array.from({ length: 9 }, (_, i) => {
   const theta = (-Math.PI / 2) + (i * (2 * Math.PI / n));
   const cx = 0.50;
   const cy = 0.64;
-  const rx = 0.19;
-  const ry = 0.12;
+  const rx = 0.235;
+  const ry = 0.145;
   return {
     x: cx + rx * Math.cos(theta),
     y: cy + ry * Math.sin(theta),

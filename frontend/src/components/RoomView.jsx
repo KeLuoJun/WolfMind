@@ -47,9 +47,17 @@ function getRankMedal(rank) {
  * Supports click and hover (1.5s) to show agent performance cards
  * Supports replay mode - completely independent from live mode
  */
-export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard, feed, onJumpToMessage }) {
-  const canvasRef = useRef(null);
+export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard, feed, onJumpToMessage, phaseText }) {
+  const canvasDayRef = useRef(null);
+  const canvasNightRef = useRef(null);
   const containerRef = useRef(null);
+
+  const sceneMode = useMemo(() => {
+    const t = String(phaseText || '').toLowerCase();
+    if (t.includes('夜')) return 'night';
+    if (t.includes('白')) return 'day';
+    return 'night';
+  }, [phaseText]);
 
   const seatIndexForAgent = useCallback((agent, fallbackIdx) => {
     const id = String(agent?.id || '');
@@ -97,10 +105,12 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
   const replayTimeoutsRef = useRef([]);
   const replayStateRef = useRef({ messages: [], currentIndex: 0 });
 
-  // Background image
-  const roomBgSrc = ASSETS.roomBg;
+  // Background images (day/night)
+  const roomBgNightSrc = ASSETS.roomBg;
+  const roomBgDaySrc = ASSETS.roomBgDay || ASSETS.roomBg;
 
-  const bgImg = useImage(roomBgSrc);
+  const bgNightImg = useImage(roomBgNightSrc);
+  const bgDayImg = useImage(roomBgDaySrc);
 
   // Calculate scale to fit canvas in container (maximize visible scene)
   const [scale, setScale] = useState(1.0);
@@ -116,10 +126,10 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
       const scaleX = clientWidth / SCENE_NATIVE.width;
       const scaleY = clientHeight / SCENE_NATIVE.height;
 
-      // Use most of the available space and allow slight upscaling.
-      const maxScale = 1.35;
+      // Use more of the available space and allow more upscaling to reduce emptiness.
+      const maxScale = 1.55;
       const fitScale = Math.min(scaleX, scaleY);
-      const newScale = Math.min(fitScale * 0.98, maxScale);
+      const newScale = Math.min(fitScale * 1.06, maxScale);
       setScale(Math.max(0.45, newScale));
     };
 
@@ -136,23 +146,22 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
     };
   }, []);
 
-  // Set canvas size
+  // Set canvas size (both layers)
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.width = SCENE_NATIVE.width;
-    canvas.height = SCENE_NATIVE.height;
-
     const displayWidth = Math.round(SCENE_NATIVE.width * scale);
     const displayHeight = Math.round(SCENE_NATIVE.height * scale);
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
+    const canvases = [canvasDayRef.current, canvasNightRef.current].filter(Boolean);
+    for (const canvas of canvases) {
+      canvas.width = SCENE_NATIVE.width;
+      canvas.height = SCENE_NATIVE.height;
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+    }
   }, [scale]);
 
-  // Draw room background
+  // Draw room background (night)
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasNightRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -162,10 +171,24 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw image if loaded
-    if (bgImg) {
-      ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
+    if (bgNightImg) {
+      ctx.drawImage(bgNightImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
     }
-  }, [bgImg, scale, roomBgSrc]);
+  }, [bgNightImg, scale, roomBgNightSrc]);
+
+  // Draw room background (day)
+  useEffect(() => {
+    const canvas = canvasDayRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (bgDayImg) {
+      ctx.drawImage(bgDayImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
+    }
+  }, [bgDayImg, scale, roomBgDaySrc]);
 
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
@@ -560,9 +583,41 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
 
       {/* Room Canvas */}
       <div className="room-canvas-container" ref={containerRef}>
-        <div className="room-scene">
-          <div className="room-scene-wrapper" style={{ width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
-            <canvas ref={canvasRef} className="room-canvas" />
+          <div className="room-scene">
+          <div className="room-scene-wrapper" style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+              }}
+            >
+              <canvas
+                ref={canvasNightRef}
+                className="room-canvas"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  opacity: sceneMode === 'night' ? 1 : 0,
+                  transition: 'opacity 520ms ease',
+                }}
+              />
+              <canvas
+                ref={canvasDayRef}
+                className="room-canvas"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  opacity: sceneMode === 'day' ? 1 : 0,
+                  transition: 'opacity 520ms ease',
+                }}
+              />
+            </div>
 
             {/* Agents on seats (around the table) */}
             {agents.map((agent, idx) => {
@@ -600,8 +655,8 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     src={agent.avatar}
                     alt={agent.name}
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: 56,
+                      height: 56,
                       borderRadius: 999,
                       border: '1px solid #000000',
                       background: 'transparent',
@@ -610,7 +665,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                   />
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontFamily: 'IBM Plex Mono, monospace',
                       background: '#ffffff',
                       border: '1px solid #000000',
@@ -664,7 +719,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                   style={{
                     position: 'absolute',
                     left,
-                    top: Math.max(0, top - 18),
+                    top: Math.max(0, top - 30),
                     transform: 'translate(-50%, -100%)',
                     zIndex: 25,
                   }}

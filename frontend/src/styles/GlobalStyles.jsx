@@ -648,7 +648,7 @@ export default function GlobalStyles() {
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        padding: 12px;
+        padding: 6px;
         position: relative;
       }
 
