@@ -9,7 +9,13 @@ export default function Header({
   startLabel = '开始游戏',
   onStopGame,
   stopDisabled = false,
-  stopLabel = '终止游戏'
+  stopLabel = '终止游戏',
+  onExportLog,
+  exportLogDisabled = false,
+  exportLogLabel = '导出日志',
+  onExportExperience,
+  exportExperienceDisabled = false,
+  exportExperienceLabel = '导出经验'
 }) {
   return (
     <div className="header-title" style={{ flex: '0 1 auto', minWidth: 0 }}>
@@ -102,6 +108,48 @@ export default function Header({
         }}
       >
         {stopLabel}
+      </button>
+
+      <button
+        type="button"
+        onClick={onExportLog}
+        disabled={!onExportLog || exportLogDisabled}
+        style={{
+          marginLeft: 12,
+          padding: '6px 10px',
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.5,
+          borderRadius: 6,
+          border: '1px solid #111827',
+          background: exportLogDisabled ? '#f3f4f6' : '#ffffff',
+          color: exportLogDisabled ? '#6b7280' : '#111827',
+          cursor: (!onExportLog || exportLogDisabled) ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {exportLogLabel}
+      </button>
+
+      <button
+        type="button"
+        onClick={onExportExperience}
+        disabled={!onExportExperience || exportExperienceDisabled}
+        style={{
+          marginLeft: 8,
+          padding: '6px 10px',
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.5,
+          borderRadius: 6,
+          border: '1px solid #111827',
+          background: exportExperienceDisabled ? '#f3f4f6' : '#ffffff',
+          color: exportExperienceDisabled ? '#6b7280' : '#111827',
+          cursor: (!onExportExperience || exportExperienceDisabled) ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {exportExperienceLabel}
       </button>
     </div>
   );

@@ -20,6 +20,10 @@ export default function WolfMindApp() {
   const [phaseText, setPhaseText] = useState("准备中");
   const [startingGame, setStartingGame] = useState(false);
   const [stoppingGame, setStoppingGame] = useState(false);
+  const [exportingLog, setExportingLog] = useState(false);
+  const [exportingExperience, setExportingExperience] = useState(false);
+
+  const [gameStatus, setGameStatus] = useState({ status: "idle", gameId: null, logPath: null, experiencePath: null });
 
   const [agents, setAgents] = useState(DEFAULT_AGENTS);
   const agentsRef = useRef(agents);
@@ -154,6 +158,52 @@ export default function WolfMindApp() {
     return "连接中";
   }, [connectionStatus]);
 
+  const isGameRunning = useMemo(() => String(gameStatus?.status || "").toLowerCase() === "running", [gameStatus]);
+
+  const refreshGameStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/game/status`, { method: "GET" });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!data) return;
+      setGameStatus({
+        status: data.status || "idle",
+        gameId: data.gameId ?? null,
+        logPath: data.logPath ?? null,
+        experiencePath: data.experiencePath ?? null,
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshGameStatus();
+    const t = setInterval(refreshGameStatus, 1500);
+    return () => clearInterval(t);
+  }, [refreshGameStatus]);
+
+  const downloadBlob = useCallback(async (url, fallbackName) => {
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${text || res.statusText}`.trim());
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get("content-disposition") || "";
+    const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+    const filename = decodeURIComponent((m && (m[1] || m[2])) || fallbackName || "download");
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  }, []);
+
   const bubbleFor = useCallback(
     (idOrName) => {
       if (!idOrName) return null;
@@ -176,36 +226,42 @@ export default function WolfMindApp() {
   const upsertBubbleFromMessage = useCallback((messageOrFeedItem) => {
     if (!messageOrFeedItem) return;
 
-    const msg = messageOrFeedItem.type ? messageOrFeedItem.data : messageOrFeedItem;
+    // Both raw WS events and feed items contain a `type` field.
+    // Only treat it as a feed item when it actually has a `data` payload.
+    const isFeedItem =
+      typeof messageOrFeedItem === "object" &&
+      messageOrFeedItem !== null &&
+      Object.prototype.hasOwnProperty.call(messageOrFeedItem, "data") &&
+      messageOrFeedItem.data;
+
+    const msg = isFeedItem ? messageOrFeedItem.data : messageOrFeedItem;
     if (!msg || !msg.agentId) return;
 
     const agent = agentsRef.current?.find((a) => a.id === msg.agentId);
-    const hasStructured = Boolean(
-      String(msg.thought || '').trim() ||
-      String(msg.behavior || '').trim() ||
-      String(msg.speech || '').trim()
-    );
+    const thoughtText = String(msg.thought || "").trim();
+    const behaviorText = String(msg.behavior || "").trim();
+    const speechTextRaw = String(msg.speech || "").trim();
+    const contentTextRaw = String(msg.content || "").trim();
+    const hasStructured = Boolean(thoughtText || behaviorText || speechTextRaw);
 
     const lines = [];
     if (hasStructured) {
-      if (String(msg.thought || '').trim()) {
-        lines.push(`(心声) ${extractBubbleText(msg.thought)}`);
+      if (thoughtText) {
+        lines.push(`(心声) ${extractBubbleText(thoughtText)}`);
       }
-      if (String(msg.behavior || '').trim()) {
-        lines.push(`(表现) ${extractBubbleText(msg.behavior)}`);
+      if (behaviorText) {
+        lines.push(`(表现) ${extractBubbleText(behaviorText)}`);
       }
-      const speechText = String(msg.speech || '').trim()
-        ? msg.speech
-        : (String(msg.content || '').trim() ? msg.content : '');
-      if (String(speechText || '').trim()) {
+      const speechText = speechTextRaw ? speechTextRaw : contentTextRaw;
+      if (String(speechText || "").trim()) {
         lines.push(`(发言) ${extractBubbleText(speechText)}`);
       }
     }
 
     const bubble = {
       agentId: msg.agentId,
-      agentName: msg.agent || agent?.name,
-      text: hasStructured ? lines.join('\n') : extractBubbleText(msg.speech || msg.content),
+      agentName: msg.agentName || msg.agent || agent?.name,
+      text: hasStructured ? lines.join("\n") : extractBubbleText(speechTextRaw || contentTextRaw),
       timestamp: msg.timestamp || Date.now(),
       ts: msg.timestamp || Date.now(),
       id: msg.id,
@@ -322,12 +378,13 @@ export default function WolfMindApp() {
       }
       const data = await res.json().catch(() => ({}));
       addSystemMessage(`已开始游戏 (gameId=${data?.gameId || ""})`);
+      refreshGameStatus();
     } catch (e) {
       addSystemMessage(`开始游戏失败: ${String(e?.message || e)}`);
     } finally {
       setStartingGame(false);
     }
-  }, [addSystemMessage, startingGame]);
+  }, [addSystemMessage, refreshGameStatus, startingGame]);
 
   const stopGame = useCallback(async () => {
     if (stoppingGame) return;
@@ -345,12 +402,39 @@ export default function WolfMindApp() {
       }
       const data = await res.json().catch(() => ({}));
       addSystemMessage(data?.message || "已请求终止游戏");
+      refreshGameStatus();
     } catch (e) {
       addSystemMessage(`终止游戏失败: ${String(e?.message || e)}`);
     } finally {
       setStoppingGame(false);
     }
-  }, [addSystemMessage, stoppingGame]);
+  }, [addSystemMessage, refreshGameStatus, stoppingGame]);
+
+  const exportLog = useCallback(async () => {
+    if (exportingLog) return;
+    setExportingLog(true);
+    try {
+      await downloadBlob(`${API_URL}/api/exports/log`, "game.log");
+      addSystemMessage("已导出最新游戏日志");
+    } catch (e) {
+      addSystemMessage(`导出日志失败: ${String(e?.message || e)}`);
+    } finally {
+      setExportingLog(false);
+    }
+  }, [addSystemMessage, downloadBlob, exportingLog]);
+
+  const exportExperience = useCallback(async () => {
+    if (exportingExperience) return;
+    setExportingExperience(true);
+    try {
+      await downloadBlob(`${API_URL}/api/exports/experience`, "experience.json");
+      addSystemMessage("已导出最新经验文件");
+    } catch (e) {
+      addSystemMessage(`导出经验失败: ${String(e?.message || e)}`);
+    } finally {
+      setExportingExperience(false);
+    }
+  }, [addSystemMessage, downloadBlob, exportingExperience]);
 
   return (
     <div className="app">
@@ -362,10 +446,16 @@ export default function WolfMindApp() {
           phaseText={phaseText}
           onStartGame={startGame}
           onStopGame={stopGame}
-          startDisabled={startingGame}
+          startDisabled={startingGame || isGameRunning}
           startLabel={startingGame ? "启动中…" : "开始游戏"}
-          stopDisabled={stoppingGame}
+          stopDisabled={stoppingGame || !isGameRunning}
           stopLabel={stoppingGame ? "终止中…" : "终止游戏"}
+          onExportLog={exportLog}
+          exportLogDisabled={exportingLog}
+          exportLogLabel={exportingLog ? "导出中…" : "导出日志"}
+          onExportExperience={exportExperience}
+          exportExperienceDisabled={exportingExperience}
+          exportExperienceLabel={exportingExperience ? "导出中…" : "导出经验"}
         />
       </div>
 
