@@ -193,6 +193,7 @@ uv run python -m backend.analysis \
 
 - [完整对局日志（GLM-4.6）](static/game_20251210_150049_glm-4.6.log)
 - [完整对局经验存档（GLM-4.6）](static/players_experience_20251210_150049_glm-4.6.json)
+- [示例分析报告](data/analysis_reports/report_demo.html)
 
 ---
 
