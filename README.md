@@ -46,12 +46,9 @@
 - ✅ Web 控制台：日志列表/查看、自动刷新、启动/停止游戏
 - ✅ 基于日志的深度数据分析（心理分析、社交网络分析）
 
-### 开发中功能 🚧
-
-
 ## 快速开始
 
-### 1) 安装
+### 1. 安装
 
 推荐使用 [uv](https://github.com/astral-sh/uv) 快速管理环境：
 
@@ -63,47 +60,31 @@ cd WolfMind
 uv sync
 ```
 
-### 2) 运行（推荐：Web 控制台）
+### 2. 配置
+
+首先，根据模板创建配置文件：
 
 ```bash
-# 使用 uv 运行前端服务器
-uv run python frontend/server.py
+# Windows
+copy backend\.env.example backend\.env
+# Linux / macOS
+cp backend/.env.example backend/.env
 ```
 
-打开控制台：`http://localhost:8080`。
+编辑 `backend/.env`，根据需要配置模型提供商与 API Key：
 
-启动后先在页面配置模型提供商与 API Key，再点击启动游戏；日志列表与内容会自动刷新。
-
-### 3) 运行（CLI / 无前端）
-
-```bash
-cd backend
-copy .env.example .env
-cd ..
-```
-
-编辑 `.env`，至少配置 `MODEL_PROVIDER` 与对应的 API Key，然后：
-
-```bash
-uv run python backend/main.py
-```
-
----
-
-## 配置
-
-### 基础配置（必填）
+#### 基础配置（必填）
 
 ```bash
 # dashscope / openai / ollama
 MODEL_PROVIDER=dashscope
 ```
 
-- DashScope：设置 `DASHSCOPE_API_KEY`
-- OpenAI 兼容：设置 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME`
-- Ollama：确保本地已安装 Ollama 并拉取模型（通常不需要 API Key）
+- **DashScope**：设置 `DASHSCOPE_API_KEY`
+- **OpenAI 兼容**：设置 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL_NAME`
+- **Ollama**：确保本地已安装 Ollama 并拉取模型（通常不需要 API Key）
 
-### 可选项
+#### 可选项
 
 ```bash
 # 可选：启用 AgentScope Studio 可视化
@@ -113,12 +94,31 @@ ENABLE_STUDIO=false
 AUTO_ANALYZE=false
 ```
 
-### OpenAI 玩家级配置（可选）
+#### OpenAI 玩家级配置（可选）
 
 `OPENAI_PLAYER_MODE=single|per-player`
 
 - `single`（默认）：9 位玩家共用全局 OpenAI 配置
-- `per-player`：需要同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`（不填写不会回退到全局配置；缺一会报错）
+- `per-player`：需要同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`
+
+### 3. 运行
+
+#### 方式 A：Web 控制台（推荐）
+
+```bash
+# 使用 uv 运行前端服务器
+uv run python frontend/server.py
+```
+
+打开浏览器访问：[http://localhost:8080](http://localhost:8080)。
+
+> **提示**：启动后也可以在页面上直接配置模型信息，点击“启动游戏”即可实时查看日志。
+
+#### 方式 B：CLI 命令行
+
+```bash
+uv run python backend/main.py
+```
 
 ---
 
