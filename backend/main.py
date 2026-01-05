@@ -5,10 +5,10 @@ import sys
 from pathlib import Path
 
 try:
-    from .core.game_engine import werewolves_game  # type: ignore
-    from .core.knowledge_base import PlayerKnowledgeStore  # type: ignore
-    from .config import config  # type: ignore
-except Exception:  # noqa: BLE001
+    from .core.game_engine import werewolves_game 
+    from .core.knowledge_base import PlayerKnowledgeStore  
+    from .config import config 
+except Exception:
     from core.game_engine import werewolves_game
     from core.knowledge_base import PlayerKnowledgeStore
     from config import config

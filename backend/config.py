@@ -9,7 +9,6 @@ class Config:
 
     def __init__(self):
         """初始化配置，从 .env 文件加载"""
-        # 将路径锚定到仓库根目录，避免在 backend 下产生散落文件
         self.backend_dir = Path(__file__).resolve().parent
         self.root_dir = self.backend_dir.parent
         self._env: dict[str, str] = {}
