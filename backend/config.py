@@ -17,7 +17,7 @@ class Config:
 
     def _load_env(self):
         """加载 .env 文件"""
-        env_path = self.backend_dir / ".env"
+        env_path = self.root_dir / ".env"
         if env_path.exists():
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:

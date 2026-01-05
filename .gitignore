@@ -39,7 +39,6 @@ agent/
 
 # Environment Variables
 .env
-backend/.env
 
 # Data
 data/experiences/*.json
