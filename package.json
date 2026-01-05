@@ -1,0 +1,21 @@
+{
+  "name": "wolfmind",
+  "version": "0.1.0",
+  "description": "WolfMind - AI 狼人杀多智能体游戏引擎",
+  "scripts": {
+    "setup": "npm install && cd frontend && npm install",
+    "setup:backend": "cd backend && uv sync",
+    "setup:all": "npm run setup && npm run setup:backend",
+    "dev": "concurrently -n \"backend,frontend\" -c \"yellow,cyan\" \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && uv run uvicorn api_server:app --reload --host 0.0.0.0 --port 8000",
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "AGPL-3.0"
+}
