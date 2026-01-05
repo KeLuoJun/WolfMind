@@ -74,12 +74,10 @@ npm run setup:backend  # 安装后端依赖
 ### 2) 配置
 
 ```bash
-cd backend
 copy .env.example .env
-cd ..
 ```
 
-编辑 `backend/.env`，至少配置 `MODEL_PROVIDER` 与对应的 API Key。
+编辑 `.env`，至少配置 `MODEL_PROVIDER` 与对应的 API Key。
 
 ### 3) 运行
 
