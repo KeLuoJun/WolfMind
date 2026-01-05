@@ -138,6 +138,7 @@ export default function WolfMindApp() {
           avatar: meta.avatar,
           colors: meta.colors,
           model: p?.model || base.model,
+          alive: p?.alive !== false, // 默认存活
         });
       }
       const nextAgents = Array.from(byId.values()).sort((a, b) => {
@@ -151,6 +152,27 @@ export default function WolfMindApp() {
     },
     [mapPlayerNameToAgentId, roleMetaFromRole]
   );
+
+  // 处理玩家死亡事件
+  const markPlayersDead = useCallback((deadPlayerNames) => {
+    if (!Array.isArray(deadPlayerNames) || deadPlayerNames.length === 0) return;
+
+    setAgents((prev) => {
+      const updated = prev.map((agent) => {
+        // 检查玩家名是否在死亡列表中
+        const isDead = deadPlayerNames.some((name) => {
+          const deadId = mapPlayerNameToAgentId(name);
+          return deadId === agent.id || name === agent.name || name === `${agent.name.replace('号', '')}号`;
+        });
+        if (isDead) {
+          return { ...agent, alive: false };
+        }
+        return agent;
+      });
+      agentsRef.current = updated;
+      return updated;
+    });
+  }, [mapPlayerNameToAgentId]);
 
   const statusText = useMemo(() => {
     if (connectionStatus === "connected") return "已连接";
@@ -308,11 +330,21 @@ export default function WolfMindApp() {
         if (content.toLowerCase().includes("try to connect")) {
           setConnectionStatus("disconnected");
         }
+        
+        // 处理死亡事件 - 检查 category 包含 "死亡" 或 content 包含死亡信息
+        const category = String(evt.category || "");
+        if ((category.includes("死亡") || content.includes("被淘汰")) && Array.isArray(evt.players)) {
+          markPlayersDead(evt.players);
+        }
       }
 
       // Backend sends role assignment in a system event (players list)
       if (evt.type === "system" && Array.isArray(evt.players)) {
-        applyPlayersInit(evt.players);
+        // 只有当不是死亡事件时才初始化玩家
+        const category = String(evt.category || "");
+        if (!category.includes("死亡")) {
+          applyPlayersInit(evt.players);
+        }
       }
 
       if (evt.type === "day_start") {
@@ -325,12 +357,21 @@ export default function WolfMindApp() {
       if (evt.type === "historical" && Array.isArray(evt.events)) {
         // Historical snapshot may include the players init event; apply it first.
         const playersInit = evt.events
-          .filter((e) => e && e.type === "system" && Array.isArray(e.players))
+          .filter((e) => e && e.type === "system" && Array.isArray(e.players) && !String(e.category || "").includes("死亡"))
           .map((e) => e.players)
           .pop();
         if (playersInit) {
           applyPlayersInit(playersInit);
         }
+        
+        // 处理历史死亡事件
+        const deathEvents = evt.events.filter(
+          (e) => e && e.type === "system" && String(e.category || "").includes("死亡") && Array.isArray(e.players)
+        );
+        for (const deathEvt of deathEvents) {
+          markPlayersDead(deathEvt.players);
+        }
+        
         processHistoricalFeed(evt.events);
         return;
       }
@@ -357,7 +398,7 @@ export default function WolfMindApp() {
       }
       clientRef.current = null;
     };
-  }, [addSystemMessage, applyPlayersInit, processFeedEvent, processHistoricalFeed, upsertBubbleFromMessage]);
+  }, [addSystemMessage, applyPlayersInit, markPlayersDead, processFeedEvent, processHistoricalFeed, upsertBubbleFromMessage]);
 
   const startGame = useCallback(async () => {
     if (startingGame) return;

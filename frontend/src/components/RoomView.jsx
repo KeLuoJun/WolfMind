@@ -474,11 +474,12 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
           const medal = rank ? getRankMedal(rank) : null;
           const agentData = getAgentData(agent.id);
           const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
+          const isAlive = agent.alive !== false;
 
           return (
             <React.Fragment key={agent.id}>
               <div
-                className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''} ${hoveredAgent === agent.id ? 'hovered' : ''}`}
+                className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''} ${hoveredAgent === agent.id ? 'hovered' : ''} ${!isAlive ? 'dead' : ''}`}
                 onClick={() => handleAgentClick(agent.id)}
                 onMouseEnter={() => handleTopAgentMouseEnter(agent.id)}
                 onMouseLeave={handleTopAgentMouseLeave}
@@ -488,8 +489,35 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     src={agent.avatar}
                     alt={agent.name}
                     className="agent-avatar"
+                    style={{
+                      filter: isAlive ? 'none' : 'grayscale(100%) brightness(0.7)',
+                      opacity: isAlive ? 1 : 0.6,
+                    }}
                   />
-                  <span className="agent-indicator-dot"></span>
+                  <span className="agent-indicator-dot" style={{ display: isAlive ? 'block' : 'none' }}></span>
+                  {!isAlive && (
+                    <span 
+                      className="agent-dead-mark"
+                      style={{
+                        position: 'absolute',
+                        bottom: -2,
+                        right: -2,
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        background: '#ef4444',
+                        border: '2px solid #ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ✕
+                    </span>
+                  )}
                   {medal && (
                     <span className="agent-rank-medal">
                       {medal}
@@ -517,7 +545,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     />
                   )}
                 </div>
-                <span className="agent-name">{agent.name}</span>
+                <span className="agent-name" style={{ color: isAlive ? '#111827' : '#9ca3af' }}>{agent.name}</span>
               </div>
             </React.Fragment>
           );
@@ -526,9 +554,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
         {/* Hint Text */}
         <div className="agent-hint-text">
           点击头像查看身份信息
-        </div>
-
-        {hoveredTopAgentId && (
+        </div>        {hoveredTopAgentId && (
           <div className="room-insights-popover" role="dialog" aria-label="Player insights">
             <div className="room-insights-title">
               {agents.find(a => a.id === hoveredTopAgentId)?.name || hoveredTopAgentId}
@@ -676,6 +702,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               const top = Math.round(scaledHeight - pos.y * scaledHeight);
 
               const isSpeaking = !!speakingAgents[agent.id];
+              const isAlive = agent.alive !== false;
 
               return (
                 <div
@@ -691,31 +718,59 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: 6,
-                    userSelect: 'none'
+                    userSelect: 'none',
+                    opacity: isAlive ? 1 : 0.7,
                   }}
                   onClick={() => handleAgentClick(agent.id)}
                   onMouseEnter={() => handleAgentMouseEnter(agent.id)}
                   onMouseLeave={handleAgentMouseLeave}
                 >
-                  <img
-                    src={agent.avatar}
-                    alt={agent.name}
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 999,
-                      border: '2px solid #000000',
-                      background: 'rgba(255, 255, 255, 0.10)',
-                      boxShadow: isSpeaking ? '0 0 0 4px rgba(97, 92, 237, 0.35)' : '0 4px 10px rgba(0, 0, 0, 0.10)'
-                    }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <img
+                      src={agent.avatar}
+                      alt={agent.name}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 999,
+                        border: isAlive ? '2px solid #000000' : '2px solid #666666',
+                        background: 'rgba(255, 255, 255, 0.10)',
+                        boxShadow: isSpeaking ? '0 0 0 4px rgba(97, 92, 237, 0.35)' : '0 4px 10px rgba(0, 0, 0, 0.10)',
+                        filter: isAlive ? 'none' : 'grayscale(100%) brightness(0.7)',
+                      }}
+                    />
+                    {/* 死亡标记 */}
+                    {!isAlive && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -5,
+                          right: -5,
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#ef4444',
+                          border: '2px solid #ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          color: '#ffffff',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        ✕
+                      </div>
+                    )}
+                  </div>
                   <div
                     style={{
                       fontSize: 12,
                       fontWeight: 800,
                       fontFamily: 'IBM Plex Mono, monospace',
-                      background: '#ffffff',
-                      border: '2px solid #000000',
+                      background: isAlive ? '#ffffff' : '#e5e5e5',
+                      border: isAlive ? '2px solid #000000' : '2px solid #888888',
+                      color: isAlive ? '#000000' : '#666666',
                       padding: '2px 7px',
                       borderRadius: 4,
                       lineHeight: 1,
