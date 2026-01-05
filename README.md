@@ -96,11 +96,12 @@ npm run frontend  # 启动前端 (http://localhost:5173)
 npm run build  # 构建前端生产版本
 ```
 
-### 5) 运行（CLI / 无前端）
+### 仅运行后端（CLI / 无前端）
 
 ```bash
 uv run python backend/main.py
 ```
+运行后，在data/game_logs中查看实时的游戏信息。
 
 ---
 
