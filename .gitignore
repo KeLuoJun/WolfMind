@@ -39,7 +39,6 @@ agent/
 
 # Environment Variables
 .env
-backend/.env
 
 # Data
 data/experiences/*.json
@@ -59,6 +58,7 @@ logs/
 Thumbs.db
 
 # Frontend
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
