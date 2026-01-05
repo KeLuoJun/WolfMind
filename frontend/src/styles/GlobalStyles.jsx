@@ -856,18 +856,22 @@ export default function GlobalStyles() {
 
       .room-bubble {
         position: relative;
-        width: clamp(320px, 44vw, 560px);
-        max-width: 560px;
+        width: clamp(280px, 38vw, 480px);
+        max-width: 480px;
+        max-height: 280px;
         font-size: 12px;
         background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
         color: #000000;
         padding: 12px 14px;
-        border: 2px solid #000000;
+        border: 2px solid #615CED;
         border-radius: 12px;
-        box-shadow: 8px 10px 0 0 rgba(0, 0, 0, 0.10);
+        box-shadow: 4px 6px 0 0 rgba(97, 92, 237, 0.15);
         font-family: 'IBM Plex Mono', monospace;
         line-height: 1.5;
         animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       @keyframes bubbleAppear {
@@ -881,27 +885,10 @@ export default function GlobalStyles() {
         }
       }
 
+      /* 移除伪元素，连接线通过内联样式实现 */
+      .room-bubble::before,
       .room-bubble::after {
-        content: "";
-        position: absolute;
-        left: 12px;
-        bottom: -8px;
-        width: 12px;
-        height: 12px;
-        background: #fafafa;
-        border-left: 2px solid #000000;
-        border-bottom: 2px solid #000000;
-        transform: rotate(-45deg);
-      }
-
-      /* Bubble tail points toward the speaker (left/right columns) */
-      .room-bubble.room-bubble--right::after {
-        left: auto;
-        right: 12px;
-        border-left: none;
-        border-right: 2px solid #000000;
-        border-bottom: 2px solid #000000;
-        transform: rotate(45deg);
+        display: none;
       }
 
       .bubble-action-buttons {
@@ -990,6 +977,29 @@ export default function GlobalStyles() {
         font-size: 12px;
         line-height: 1.7;
         position: relative;
+        flex: 1;
+        overflow-y: auto;
+        max-height: 180px;
+        padding-right: 4px;
+      }
+
+      /* 自定义滚动条样式 */
+      .room-bubble-content::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .room-bubble-content::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 3px;
+      }
+
+      .room-bubble-content::-webkit-scrollbar-thumb {
+        background: rgba(97, 92, 237, 0.4);
+        border-radius: 3px;
+      }
+
+      .room-bubble-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(97, 92, 237, 0.6);
       }
 
       .bubble-expand-btn {

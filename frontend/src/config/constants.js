@@ -27,19 +27,20 @@ export const SCENE_NATIVE = { width: 1248, height: 832 };
 // Format: { x: 0..1, y: 0..1 from bottom }
 // UX: players sit on two sides (left: 5 players, right: 4 players).
 // Seat index maps to player number-1 (player_1 -> index 0, ..., player_9 -> index 8).
+// Right side players (6-9) are horizontally aligned with left side players (2-5).
 export const AGENT_SEATS = [
-  // Left side (5) - slightly closer to edge, more vertical spacing
-  { x: 0.09, y: 0.82 }, // 1
-  { x: 0.09, y: 0.65 }, // 2
-  { x: 0.09, y: 0.48 }, // 3
-  { x: 0.09, y: 0.31 }, // 4
-  { x: 0.09, y: 0.14 }, // 5
+  // Left side (5) - 1号到5号
+  { x: 0.09, y: 0.82 }, // 1号 - 最上方，无对应右侧玩家
+  { x: 0.09, y: 0.64 }, // 2号 - 与6号对齐
+  { x: 0.09, y: 0.46 }, // 3号 - 与7号对齐
+  { x: 0.09, y: 0.28 }, // 4号 - 与8号对齐
+  { x: 0.09, y: 0.10 }, // 5号 - 与9号对齐
 
-  // Right side (4) - leave top-right space for sun/moon
-  { x: 0.91, y: 0.58 }, // 6
-  { x: 0.91, y: 0.41 }, // 7
-  { x: 0.91, y: 0.24 }, // 8
-  { x: 0.91, y: 0.07 }, // 9
+  // Right side (4) - 6号到9号，与左侧2-5号水平对齐
+  { x: 0.91, y: 0.64 }, // 6号 - 与2号对齐
+  { x: 0.91, y: 0.46 }, // 7号 - 与3号对齐
+  { x: 0.91, y: 0.28 }, // 8号 - 与4号对齐
+  { x: 0.91, y: 0.10 }, // 9号 - 与5号对齐
 ];
 
 // Players (kept as AGENTS to minimize code changes across existing components)

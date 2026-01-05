@@ -912,7 +912,7 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
               const scaledWidth = SCENE_NATIVE.width * scale;
               const scaledHeight = SCENE_NATIVE.height * scale;
 
-              // Position wrapper centered on the agent seat, then place bubble above.
+              // Position wrapper centered on the agent seat
               const left = Math.round(pos.x * scaledWidth);
               const top = Math.round(scaledHeight - pos.y * scaledHeight);
 
@@ -946,11 +946,60 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                     className={`room-bubble ${isLeftSide ? 'room-bubble--left' : 'room-bubble--right'}`}
                     style={{
                       position: 'absolute',
-                      top: -88,
-                      left: isLeftSide ? 70 : 'auto',
-                      right: isLeftSide ? 'auto' : 70,
+                      // 气泡底部对齐玩家头像中心，这样气泡向上延伸
+                      bottom: 0,
+                      // 气泡水平位置：左侧玩家气泡在右边，右侧玩家气泡在左边
+                      left: isLeftSide ? 50 : 'auto',
+                      right: isLeftSide ? 'auto' : 50,
                     }}
                   >
+                  {/* 玩家名称标签 - 在气泡左上角或右上角 */}
+                  <div
+                    className="bubble-player-tag"
+                    style={{
+                      position: 'absolute',
+                      top: '-22px',
+                      [isLeftSide ? 'left' : 'right']: '0',
+                      background: '#615CED',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '3px 10px',
+                      borderRadius: '6px 6px 0 0',
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 -2px 4px rgba(97, 92, 237, 0.2)',
+                    }}
+                  >
+                    {agent.name} 
+                  </div>
+
+                  {/* 连接线：从气泡指向玩家头像 */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '20px',
+                      [isLeftSide ? 'left' : 'right']: '-25px',
+                      width: '25px',
+                      height: '3px',
+                      background: '#615CED',
+                      borderRadius: '2px',
+                    }}
+                  />
+                  {/* 连接点 */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '16px',
+                      [isLeftSide ? 'left' : 'right']: '-32px',
+                      width: '10px',
+                      height: '10px',
+                      background: '#615CED',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 0 3px rgba(97, 92, 237, 0.3)',
+                    }}
+                  />
+
                   {/* Action buttons */}
                   <div className="bubble-action-buttons">
                     <button

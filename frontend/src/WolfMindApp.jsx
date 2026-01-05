@@ -238,17 +238,14 @@ export default function WolfMindApp() {
     if (!msg || !msg.agentId) return;
 
     const agent = agentsRef.current?.find((a) => a.id === msg.agentId);
-    const thoughtText = String(msg.thought || "").trim();
     const behaviorText = String(msg.behavior || "").trim();
     const speechTextRaw = String(msg.speech || "").trim();
     const contentTextRaw = String(msg.content || "").trim();
-    const hasStructured = Boolean(thoughtText || behaviorText || speechTextRaw);
+    // 气泡只显示 behavior 和 speech，不显示 thought
+    const hasStructured = Boolean(behaviorText || speechTextRaw);
 
     const lines = [];
     if (hasStructured) {
-      if (thoughtText) {
-        lines.push(`(心声) ${extractBubbleText(thoughtText)}`);
-      }
       if (behaviorText) {
         lines.push(`(表现) ${extractBubbleText(behaviorText)}`);
       }
