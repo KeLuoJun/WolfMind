@@ -6,175 +6,6 @@ import { getModelIcon } from '../utils/modelIcons';
 const INSIGHTS_CACHE_TTL_MS = 10_000;
 
 /**
- * Custom hook to load an image
- */
-function clamp01(n) {
-  return Math.max(0, Math.min(1, n));
-}
-
-function drawRoundedRect(ctx, x, y, w, h, r) {
-  const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
-function drawRoomBackground(ctx, mode) {
-  const w = SCENE_NATIVE.width;
-  const h = SCENE_NATIVE.height;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Base sky gradient
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  if (mode === 'day') {
-    sky.addColorStop(0, '#F0F4FF');
-    sky.addColorStop(0.4, '#FFFFFF');
-    sky.addColorStop(1, '#E2E8F0');
-  } else {
-    sky.addColorStop(0, '#020617');
-    sky.addColorStop(0.5, '#0F172A');
-    sky.addColorStop(1, '#020617');
-  }
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-
-  // Stars for night mode
-  if (mode === 'night') {
-    ctx.save();
-    ctx.fillStyle = '#FFFFFF';
-    for (let i = 0; i < 220; i++) {
-      const x = (i * 1337) % w;
-      const y = (i * 7331) % Math.round(h * 0.62);
-      const big = i % 17 === 0;
-      const size = big ? 1.8 : (i % 3 === 0 ? 1.1 : 0.7);
-      ctx.globalAlpha = big ? 0.55 : (0.14 + (Math.sin(i) + 1) * 0.18);
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
-      if (big) {
-        ctx.globalAlpha = 0.12;
-        ctx.beginPath();
-        ctx.arc(x, y, size * 5.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
-
-  // Aurora / soft indigo glow
-  if (mode === 'night') {
-    ctx.save();
-    const aurora = ctx.createLinearGradient(0, 0, w, 0);
-    aurora.addColorStop(0.05, 'rgba(97, 92, 237, 0.00)');
-    aurora.addColorStop(0.28, 'rgba(97, 92, 237, 0.10)');
-    aurora.addColorStop(0.55, 'rgba(97, 92, 237, 0.04)');
-    aurora.addColorStop(0.82, 'rgba(97, 92, 237, 0.08)');
-    aurora.addColorStop(0.95, 'rgba(97, 92, 237, 0.00)');
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = aurora;
-    ctx.fillRect(0, 0, w, Math.round(h * 0.62));
-    ctx.restore();
-  }
-
-  // Subtle horizon glow / vignette
-  const vignette = ctx.createRadialGradient(w * 0.5, h * 0.5, 100, w * 0.5, h * 0.5, w * 0.8);
-  if (mode === 'day') {
-    vignette.addColorStop(0, 'rgba(97, 92, 237, 0.05)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.02)');
-  } else {
-    vignette.addColorStop(0, 'rgba(97, 92, 237, 0.08)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-  }
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, w, h);
-
-  // Decorative grid lines (very subtle)
-  ctx.save();
-  ctx.globalAlpha = mode === 'day' ? 0.03 : 0.06;
-  ctx.strokeStyle = mode === 'day' ? '#64748B' : '#94A3B8';
-  ctx.lineWidth = 1;
-  const step = 80;
-  for (let x = 0; x <= w; x += step) {
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, h);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= h; y += step) {
-    ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(w, y + 0.5);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Floor
-  const floorTop = Math.round(h * 0.65);
-  const floor = ctx.createLinearGradient(0, floorTop, 0, h);
-  if (mode === 'day') {
-    floor.addColorStop(0, 'rgba(226, 232, 240, 0.4)');
-    floor.addColorStop(1, 'rgba(203, 213, 225, 0.6)');
-  } else {
-    floor.addColorStop(0, 'rgba(15, 23, 42, 0.5)');
-    floor.addColorStop(1, 'rgba(2, 6, 23, 0.8)');
-  }
-  ctx.fillStyle = floor;
-  ctx.fillRect(0, floorTop, w, h - floorTop);
-
-  // Central stage panel (Removed border as requested)
-  const panelW = Math.round(w * 0.65);
-  const panelH = Math.round(h * 0.5);
-  const panelX = Math.round((w - panelW) / 2);
-  const panelY = Math.round(h * 0.15);
-
-  ctx.save();
-  ctx.globalAlpha = mode === 'day' ? 0.4 : 0.2;
-  ctx.fillStyle = mode === 'day' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.05)';
-  drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 30);
-  ctx.fill();
-  // Removed ctx.stroke() to delete the border between sides
-  ctx.restore();
-
-  // Accent corner marks (terminal-ish)
-  ctx.save();
-  ctx.globalAlpha = mode === 'day' ? 0.2 : 0.4;
-  ctx.strokeStyle = '#615CED';
-  ctx.lineWidth = 2;
-  const m = 20;
-  const corner = 30;
-  // TL
-  ctx.beginPath();
-  ctx.moveTo(panelX + m, panelY + corner);
-  ctx.lineTo(panelX + m, panelY + m);
-  ctx.lineTo(panelX + corner, panelY + m);
-  ctx.stroke();
-  // TR
-  ctx.beginPath();
-  ctx.moveTo(panelX + panelW - m, panelY + corner);
-  ctx.lineTo(panelX + panelW - m, panelY + m);
-  ctx.lineTo(panelX + panelW - corner, panelY + m);
-  ctx.stroke();
-  // BL
-  ctx.beginPath();
-  ctx.moveTo(panelX + m, panelY + panelH - corner);
-  ctx.lineTo(panelX + m, panelY + panelH - m);
-  ctx.lineTo(panelX + corner, panelY + panelH - m);
-  ctx.stroke();
-  // BR
-  ctx.beginPath();
-  ctx.moveTo(panelX + panelW - m, panelY + panelH - corner);
-  ctx.lineTo(panelX + panelW - m, panelY + panelH - m);
-  ctx.lineTo(panelX + panelW - corner, panelY + panelH - m);
-  ctx.stroke();
-  ctx.restore();
-}
-
-/**
  * Get rank medal/trophy for display
  */
 function getRankMedal(rank) {
@@ -190,10 +21,7 @@ function getRankMedal(rank) {
  * Supports click and hover (1.5s) to show agent performance cards
  * Supports replay mode - completely independent from live mode
  */
-export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard, feed, onJumpToMessage, phaseText }) {
-  const canvasDayRef = useRef(null);
-  const canvasNightRef = useRef(null);
-  const containerRef = useRef(null);
+export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard, feed, onJumpToMessage, phaseText }) {  const containerRef = useRef(null);
 
   const sceneMode = useMemo(() => {
     const t = String(phaseText || '').toLowerCase();
@@ -312,41 +140,6 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
       window.removeEventListener('resize', updateScale);
     };
   }, []);
-
-  // Set canvas size (both layers)
-  useEffect(() => {
-    const displayWidth = Math.round(SCENE_NATIVE.width * scale);
-    const displayHeight = Math.round(SCENE_NATIVE.height * scale);
-    const canvases = [canvasDayRef.current, canvasNightRef.current].filter(Boolean);
-    for (const canvas of canvases) {
-      canvas.width = SCENE_NATIVE.width;
-      canvas.height = SCENE_NATIVE.height;
-      canvas.style.width = `${displayWidth}px`;
-      canvas.style.height = `${displayHeight}px`;
-    }
-  }, [scale]);
-
-  // Draw room background (night)
-  useEffect(() => {
-    const canvas = canvasNightRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
-    drawRoomBackground(ctx, 'night');
-  }, [scale]);
-
-  // Draw room background (day)
-  useEffect(() => {
-    const canvas = canvasDayRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
-    drawRoomBackground(ctx, 'day');
-  }, [scale]);
 
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
@@ -755,9 +548,9 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
                 return (
                   <>
                     <div className="room-insights-section">
-                      <div className="room-insights-section-title">对其他玩家的影响</div>
+                      <div className="room-insights-section-title">对其他玩家的印象</div>
                       {impressionEntries.length === 0 ? (
-                        <div className="room-insights-empty">暂无影响。</div>
+                        <div className="room-insights-empty">暂无印象。</div>
                       ) : (
                         <div className="room-insights-list">
                           {impressionEntries.map(([other, text]) => (
@@ -793,43 +586,82 @@ export default function RoomView({ agents = [], bubbles, bubbleFor, leaderboard,
             className={`room-scene-wrapper ${sceneMode === 'day' ? 'is-day' : 'is-night'}`}
             style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: '100%',
-                height: '100%',
-                overflow: 'hidden',
-              }}
-            >
-              <canvas
-                ref={canvasNightRef}
-                className="room-canvas"
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  opacity: sceneMode === 'night' ? 1 : 0,
-                  transition: 'opacity 520ms ease',
-                }}
-              />
-              <canvas
-                ref={canvasDayRef}
-                className="room-canvas"
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  opacity: sceneMode === 'day' ? 1 : 0,
-                  transition: 'opacity 520ms ease',
-                }}
-              />
+            {/* 动态背景层 */}
+            <div className="room-background-layer">
+              {/* 天空渐变 */}
+              <div className="sky-gradient" />
+              
+              {/* 星星层 (夜晚) */}
+              <div className="stars-layer">
+                {[...Array(80)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`star star-${i % 3}`}
+                    style={{
+                      left: `${(i * 13.7 + i * i * 0.3) % 100}%`,
+                      top: `${(i * 7.3 + i * 0.5) % 60}%`,
+                      animationDelay: `${(i * 0.1) % 3}s`,
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* 流星 (夜晚) */}
+              <div className="shooting-stars">
+                <div className="shooting-star shooting-star-1" />
+                <div className="shooting-star shooting-star-2" />
+                <div className="shooting-star shooting-star-3" />
+              </div>
+              
+              {/* 云朵层 (白天) */}
+              <div className="clouds-layer">
+                <div className="cloud cloud-1" />
+                <div className="cloud cloud-2" />
+                <div className="cloud cloud-3" />
+                <div className="cloud cloud-4" />
+              </div>
+              
+              {/* 飞鸟 (白天) */}
+              <div className="birds-layer">
+                <div className="bird bird-1">
+                  <div className="bird-body" />
+                </div>
+                <div className="bird bird-2">
+                  <div className="bird-body" />
+                </div>
+                <div className="bird bird-3">
+                  <div className="bird-body" />
+                </div>
+              </div>
+              
+              {/* 地面 */}
+              <div className="ground-layer" />
+              
+              {/* 地平线光晕 */}
+              <div className="horizon-glow" />
+              
+              {/* 萤火虫 (夜晚) */}
+              <div className="fireflies-layer">
+                {[...Array(15)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="firefly"
+                    style={{
+                      left: `${10 + (i * 17) % 80}%`,
+                      top: `${50 + (i * 11) % 45}%`,
+                      animationDelay: `${(i * 0.4) % 4}s`,
+                      animationDuration: `${3 + (i % 3)}s`,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Celestial overlay (sun/moon), animates on day/night switch */}
             <div className="room-celestial-layer" aria-hidden="true">
-              <div className="room-celestial room-celestial-sun" />
+              <div className="room-celestial room-celestial-sun">
+                <div className="sun-rays" />
+              </div>
               <div className="room-celestial room-celestial-moon" />
             </div>
 

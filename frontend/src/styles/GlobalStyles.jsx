@@ -663,8 +663,456 @@ export default function GlobalStyles() {
 
       .room-scene-wrapper {
         position: relative;
+        overflow: hidden;
+        border-radius: 12px;
       }
 
+      /* ========== 动态背景系统 ========== */
+      .room-background-layer {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        z-index: 1;
+      }
+
+      /* 天空渐变 */
+      .sky-gradient {
+        position: absolute;
+        inset: 0;
+        transition: background 1.5s ease;
+      }
+
+      .is-day .sky-gradient {
+        background: linear-gradient(
+          180deg,
+          #4a90d9 0%,
+          #87ceeb 25%,
+          #b0e2ff 50%,
+          #e0f0ff 75%,
+          #fff5e6 100%
+        );
+      }
+
+      .is-night .sky-gradient {
+        background: linear-gradient(
+          180deg,
+          #0a0a1f 0%,
+          #1a1a3a 20%,
+          #1e2a4a 40%,
+          #162035 60%,
+          #0d1525 100%
+        );
+      }
+
+      /* 星星层 */
+      .stars-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      .is-night .stars-layer {
+        opacity: 1;
+      }
+
+      .star {
+        position: absolute;
+        border-radius: 50%;
+        background: #fff;
+      }
+
+      .star-0 {
+        width: 2px;
+        height: 2px;
+        box-shadow: 0 0 4px 1px rgba(255, 255, 255, 0.5);
+        animation: twinkle 2s ease-in-out infinite;
+      }
+
+      .star-1 {
+        width: 3px;
+        height: 3px;
+        box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+        animation: twinkle 2.5s ease-in-out infinite;
+      }
+
+      .star-2 {
+        width: 1.5px;
+        height: 1.5px;
+        box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.4);
+        animation: twinkle 3s ease-in-out infinite;
+      }
+
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+
+      /* 流星 */
+      .shooting-stars {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      .is-night .shooting-stars {
+        opacity: 1;
+      }
+
+      .shooting-star {
+        position: absolute;
+        width: 100px;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+        border-radius: 50%;
+        opacity: 0;
+      }
+
+      .shooting-star-1 {
+        top: 15%;
+        left: 20%;
+        transform: rotate(-35deg);
+        animation: shootingStar 8s ease-in-out infinite;
+        animation-delay: 0s;
+      }
+
+      .shooting-star-2 {
+        top: 25%;
+        left: 60%;
+        transform: rotate(-40deg);
+        animation: shootingStar 12s ease-in-out infinite;
+        animation-delay: 4s;
+      }
+
+      .shooting-star-3 {
+        top: 10%;
+        left: 40%;
+        transform: rotate(-30deg);
+        animation: shootingStar 15s ease-in-out infinite;
+        animation-delay: 8s;
+      }
+
+      @keyframes shootingStar {
+        0%, 95%, 100% { opacity: 0; transform: translateX(0) rotate(-35deg); }
+        96% { opacity: 1; }
+        98% { opacity: 1; transform: translateX(200px) rotate(-35deg); }
+        99% { opacity: 0; transform: translateX(250px) rotate(-35deg); }
+      }
+
+      /* 云朵层 */
+      .clouds-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      .is-day .clouds-layer {
+        opacity: 1;
+      }
+
+      .cloud {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50px;
+        filter: blur(2px);
+      }
+
+      .cloud::before,
+      .cloud::after {
+        content: '';
+        position: absolute;
+        background: inherit;
+        border-radius: 50%;
+      }
+
+      .cloud-1 {
+        width: 100px;
+        height: 35px;
+        top: 8%;
+        left: -10%;
+        animation: cloudFloat 60s linear infinite;
+      }
+
+      .cloud-1::before {
+        width: 50px;
+        height: 50px;
+        top: -25px;
+        left: 15px;
+      }
+
+      .cloud-1::after {
+        width: 40px;
+        height: 40px;
+        top: -20px;
+        left: 50px;
+      }
+
+      .cloud-2 {
+        width: 80px;
+        height: 28px;
+        top: 15%;
+        left: -8%;
+        opacity: 0.7;
+        animation: cloudFloat 80s linear infinite;
+        animation-delay: -20s;
+      }
+
+      .cloud-2::before {
+        width: 40px;
+        height: 40px;
+        top: -20px;
+        left: 10px;
+      }
+
+      .cloud-2::after {
+        width: 35px;
+        height: 35px;
+        top: -15px;
+        left: 40px;
+      }
+
+      .cloud-3 {
+        width: 120px;
+        height: 40px;
+        top: 5%;
+        left: -12%;
+        opacity: 0.5;
+        animation: cloudFloat 100s linear infinite;
+        animation-delay: -40s;
+      }
+
+      .cloud-3::before {
+        width: 60px;
+        height: 60px;
+        top: -30px;
+        left: 20px;
+      }
+
+      .cloud-3::after {
+        width: 50px;
+        height: 50px;
+        top: -25px;
+        left: 60px;
+      }
+
+      .cloud-4 {
+        width: 70px;
+        height: 25px;
+        top: 20%;
+        left: -7%;
+        opacity: 0.6;
+        animation: cloudFloat 70s linear infinite;
+        animation-delay: -55s;
+      }
+
+      .cloud-4::before {
+        width: 35px;
+        height: 35px;
+        top: -18px;
+        left: 10px;
+      }
+
+      .cloud-4::after {
+        width: 30px;
+        height: 30px;
+        top: -12px;
+        left: 35px;
+      }
+
+      @keyframes cloudFloat {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(calc(100vw + 150px)); }
+      }
+
+      /* 飞鸟层 */
+      .birds-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      .is-day .birds-layer {
+        opacity: 1;
+      }
+
+      .bird {
+        position: absolute;
+        width: 20px;
+        height: 8px;
+      }
+
+      .bird-body {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .bird-body::before,
+      .bird-body::after {
+        content: '';
+        position: absolute;
+        background: #333;
+        width: 10px;
+        height: 2px;
+        top: 50%;
+        border-radius: 2px;
+      }
+
+      .bird-body::before {
+        left: 0;
+        transform-origin: right center;
+        animation: birdWingLeft 0.3s ease-in-out infinite;
+      }
+
+      .bird-body::after {
+        right: 0;
+        transform-origin: left center;
+        animation: birdWingRight 0.3s ease-in-out infinite;
+      }
+
+      .bird-1 {
+        top: 18%;
+        left: -5%;
+        animation: birdFly 25s linear infinite;
+      }
+
+      .bird-2 {
+        top: 22%;
+        left: -8%;
+        animation: birdFly 30s linear infinite;
+        animation-delay: -10s;
+        transform: scale(0.8);
+      }
+
+      .bird-3 {
+        top: 15%;
+        left: -3%;
+        animation: birdFly 35s linear infinite;
+        animation-delay: -18s;
+        transform: scale(0.6);
+      }
+
+      @keyframes birdWingLeft {
+        0%, 100% { transform: rotate(-20deg); }
+        50% { transform: rotate(20deg); }
+      }
+
+      @keyframes birdWingRight {
+        0%, 100% { transform: rotate(20deg); }
+        50% { transform: rotate(-20deg); }
+      }
+
+      @keyframes birdFly {
+        0% { transform: translateX(0) translateY(0); }
+        25% { transform: translateX(25vw) translateY(-10px); }
+        50% { transform: translateX(50vw) translateY(5px); }
+        75% { transform: translateX(75vw) translateY(-5px); }
+        100% { transform: translateX(110vw) translateY(0); }
+      }
+
+      /* 地面层 */
+      .ground-layer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 35%;
+        transition: background 1.5s ease;
+      }
+
+      .is-day .ground-layer {
+        background: linear-gradient(
+          180deg,
+          rgba(144, 238, 144, 0.3) 0%,
+          rgba(107, 142, 35, 0.4) 30%,
+          rgba(85, 107, 47, 0.5) 60%,
+          rgba(60, 80, 40, 0.6) 100%
+        );
+      }
+
+      .is-night .ground-layer {
+        background: linear-gradient(
+          180deg,
+          rgba(20, 30, 50, 0.7) 0%,
+          rgba(15, 20, 35, 0.8) 50%,
+          rgba(10, 15, 25, 0.9) 100%
+        );
+      }
+
+      /* 地平线光晕 */
+      .horizon-glow {
+        position: absolute;
+        bottom: 32%;
+        left: 0;
+        right: 0;
+        height: 60px;
+        transition: background 1.5s ease;
+        filter: blur(20px);
+      }
+
+      .is-day .horizon-glow {
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          rgba(255, 200, 150, 0.4) 50%,
+          transparent 100%
+        );
+      }
+
+      .is-night .horizon-glow {
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          rgba(100, 80, 150, 0.3) 50%,
+          transparent 100%
+        );
+      }
+
+      /* 萤火虫层 */
+      .fireflies-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      .is-night .fireflies-layer {
+        opacity: 1;
+      }
+
+      .firefly {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: #ffff88;
+        border-radius: 50%;
+        box-shadow: 0 0 8px 3px rgba(255, 255, 100, 0.6);
+        animation: fireflyFloat 4s ease-in-out infinite;
+      }
+
+      @keyframes fireflyFloat {
+        0%, 100% {
+          opacity: 0.2;
+          transform: translate(0, 0);
+        }
+        25% {
+          opacity: 1;
+          transform: translate(10px, -15px);
+        }
+        50% {
+          opacity: 0.6;
+          transform: translate(-5px, -25px);
+        }
+        75% {
+          opacity: 1;
+          transform: translate(15px, -10px);
+        }
+      }
+
+      /* ========== 天体样式 ========== */
       .room-celestial-layer {
         position: absolute;
         left: 0;
@@ -672,107 +1120,132 @@ export default function GlobalStyles() {
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 12; /* above canvas, below agents/bubbles */
+        z-index: 12;
       }
 
       .room-celestial {
         position: absolute;
-        width: 118px;
-        height: 118px;
-        border-radius: 999px;
-        transition: transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
-        will-change: transform, opacity;
-        transform-style: preserve-3d;
+        right: 60px;
+        top: 40px;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease;
       }
 
+      /* 太阳 */
       .room-celestial-sun {
-        left: 34px;
-        top: 32px;
-        background: radial-gradient(circle at 30% 30%, #FFF9C4 0%, #FFD54F 30%, #F57C00 70%, #E65100 100%);
-        border: 3px solid #000000;
+        background: radial-gradient(
+          circle at 35% 35%,
+          #fff9c4 0%,
+          #ffeb3b 30%,
+          #ffc107 60%,
+          #ff9800 100%
+        );
         box-shadow:
-          0 22px 40px rgba(0, 0, 0, 0.18),
-          0 0 48px rgba(255, 167, 38, 0.35),
-          inset -14px -18px 26px rgba(0,0,0,0.18),
-          inset 12px 10px 18px rgba(255,255,255,0.22);
+          0 0 50px rgba(255, 193, 7, 0.8),
+          0 0 100px rgba(255, 152, 0, 0.5),
+          0 0 150px rgba(255, 87, 34, 0.3);
         opacity: 0;
-        transform: translateX(-260px) rotate(-180deg);
+        transform: scale(0.3) rotate(-180deg);
       }
 
-      .room-celestial-sun::before {
-        content: "";
+      .sun-rays {
         position: absolute;
-        inset: 10px;
-        border-radius: 999px;
-        background: radial-gradient(circle at 28% 28%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.22) 28%, rgba(255,255,255,0) 62%);
-        transform: translateZ(1px);
-        pointer-events: none;
+        inset: -30px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 50%,
+          rgba(255, 235, 59, 0.4) 0%,
+          rgba(255, 193, 7, 0.2) 40%,
+          transparent 70%
+        );
+        animation: sunRaysPulse 3s ease-in-out infinite;
       }
 
-      .room-celestial-sun::after {
-        content: "";
-        position: absolute;
-        inset: -3px;
-        border-radius: 999px;
-        background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.18) 100%);
-        opacity: 0.35;
-        pointer-events: none;
+      @keyframes sunRaysPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.15); opacity: 0.7; }
       }
 
+      /* 月亮 */
       .room-celestial-moon {
-        right: 34px;
-        top: 32px;
-        background: radial-gradient(circle at 30% 30%, #F8FAFC 0%, #E2E8F0 40%, #94A3B8 80%, #475569 100%);
-        border: 3px solid #F8FAFC;
+        background: radial-gradient(
+          circle at 35% 35%,
+          #f5f5f5 0%,
+          #e0e0e0 40%,
+          #bdbdbd 70%,
+          #9e9e9e 100%
+        );
         box-shadow:
-          0 22px 40px rgba(0, 0, 0, 0.22),
-          0 0 44px rgba(148, 163, 184, 0.22),
-          inset -16px -18px 28px rgba(0,0,0,0.35),
-          inset 10px 10px 18px rgba(255,255,255,0.16);
+          0 0 30px rgba(255, 255, 255, 0.4),
+          0 0 60px rgba(200, 200, 255, 0.3),
+          inset -8px -8px 20px rgba(0, 0, 0, 0.3);
         opacity: 0;
-        transform: translateX(260px) rotate(180deg);
+        transform: scale(0.3) rotate(180deg);
+      }
+
+      .room-celestial-moon::before {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 22%;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.08);
+        box-shadow:
+          30px 20px 0 -3px rgba(0, 0, 0, 0.06),
+          12px 40px 0 -5px rgba(0, 0, 0, 0.05),
+          45px 35px 0 -4px rgba(0, 0, 0, 0.04);
       }
 
       .room-celestial-moon::after {
-        content: "";
+        content: '';
         position: absolute;
-        inset: 0;
-        border-radius: 999px;
-        background: radial-gradient(circle at 28% 26%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 35%, rgba(0,0,0,0) 64%);
-        pointer-events: none;
-      }
-
-      /* Add some "craters" to the moon using pseudo-elements if possible, or just better gradient */
-      .room-celestial-moon::before {
-        content: "";
-        position: absolute;
-        top: 20%;
-        left: 25%;
-        width: 20px;
-        height: 20px;
+        inset: -15px;
         border-radius: 50%;
-        background: rgba(0,0,0,0.05);
-        box-shadow: 40px 30px 0 -4px rgba(0,0,0,0.05), 10px 60px 0 -2px rgba(0,0,0,0.05);
+        background: radial-gradient(
+          circle at 50% 50%,
+          rgba(200, 200, 255, 0.15) 0%,
+          transparent 60%
+        );
+        animation: moonGlow 4s ease-in-out infinite;
       }
 
+      @keyframes moonGlow {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.08); opacity: 0.8; }
+      }
+
+      /* 白天状态 */
       .room-scene-wrapper.is-day .room-celestial-sun {
         opacity: 1;
-        transform: translateX(0) rotate(0deg);
+        transform: scale(1) rotate(0deg);
       }
 
       .room-scene-wrapper.is-day .room-celestial-moon {
         opacity: 0;
-        transform: translateX(280px) rotate(180deg);
+        transform: scale(0.3) rotate(180deg);
       }
 
+      /* 夜晚状态 */
       .room-scene-wrapper.is-night .room-celestial-moon {
         opacity: 1;
-        transform: translateX(0) rotate(0deg);
+        transform: scale(1) rotate(0deg);
       }
 
       .room-scene-wrapper.is-night .room-celestial-sun {
         opacity: 0;
-        transform: translateX(-280px) rotate(-180deg);
+        transform: scale(0.3) rotate(-180deg);
+      }
+        right: 60px;
+        top: 40px;
+        width: 100px;
+        height: 100px;
+        border-radius: 999px;
+        transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease;
+        will-change: transform, opacity;
       }
 
       @keyframes pulse {
