@@ -270,10 +270,23 @@ async def _reflection_phase(
     moderator_agent: EchoAgent,
     logger: GameLogger,
     knowledge_store: PlayerKnowledgeStore,
+    stop_event: Any | None = None,
 ) -> None:
     """让每位存活玩家在回合结束后更新印象。"""
 
+    def _check_stop_local() -> None:
+        """检查是否收到终止信号。"""
+        if stop_event is not None and getattr(stop_event, "is_set", None):
+            try:
+                if stop_event.is_set():
+                    raise asyncio.CancelledError("游戏被用户终止")
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                return
+
     async def _run_reflection_task(role_obj: Any) -> dict[str, Any]:
+        _check_stop_local()
         await asyncio.sleep(0.4)  # 控制并行调用节奏
         context = _format_impression_context(
             role_obj.name,
@@ -413,12 +426,20 @@ async def werewolves_game(
     game_status = "正常结束"
 
     def _check_stop() -> None:
+        """检查是否收到终止信号，若收到则抛出 CancelledError 以中断游戏。"""
         if stop_event is not None and getattr(stop_event, "is_set", None):
             try:
                 if stop_event.is_set():
-                    raise asyncio.CancelledError()
+                    raise asyncio.CancelledError("游戏被用户终止")
+            except asyncio.CancelledError:
+                raise
             except Exception:
                 return
+
+    async def _check_stop_async() -> None:
+        """异步版本的停止检查，可在 await 点使用。"""
+        _check_stop()
+        await asyncio.sleep(0)  # 让出控制权，允许其他任务运行
 
     try:
         # 游戏开始！
@@ -591,6 +612,7 @@ async def werewolves_game(
             night_hunter_candidates: list[Hunter] = []
 
             # 女巫回合
+            _check_stop()
             await alive_players_hub.broadcast(
                 await moderator(Prompts.to_all_witch_turn),
             )
@@ -652,6 +674,7 @@ async def werewolves_game(
             ]
 
             # 预言家回合
+            _check_stop()
             await alive_players_hub.broadcast(
                 await moderator(Prompts.to_all_seer_turn),
             )
@@ -790,6 +813,7 @@ async def werewolves_game(
                 break
 
             # 讨论
+            _check_stop()
             await alive_players_hub.broadcast(
                 await moderator(
                     Prompts.to_all_discuss.format(
@@ -804,6 +828,7 @@ async def werewolves_game(
             # 使用 sequential_pipeline 进行讨论，并记录每个玩家的发言
             discussion_msgs = []
             for role in players.current_alive:
+                _check_stop()
                 context = _format_impression_context(
                     role.name,
                     players,
@@ -839,6 +864,7 @@ async def werewolves_game(
                 )
 
             # 投票
+            _check_stop()
             vote_prompt = await moderator(
                 Prompts.to_all_vote.format(
                     names_to_str(players.current_alive),
@@ -848,6 +874,7 @@ async def werewolves_game(
             day_votes_for_majority: list[str | None] = []
 
             async def _vote_task(role_obj: Any) -> tuple[Any, Msg | None]:
+                _check_stop()
                 await asyncio.sleep(0.4)  # 控制并行调用节奏
                 context = _format_impression_context(
                     role_obj.name,
@@ -1196,6 +1223,7 @@ async def werewolves_game(
             players.update_players(dead_today)
 
             # 回合结束，存活玩家更新印象
+            _check_stop()
             await _reflection_phase(
                 players,
                 vote_history,
@@ -1204,6 +1232,7 @@ async def werewolves_game(
                 moderator,
                 logger,
                 knowledge_store,
+                stop_event,
             )
 
             # 记录回合结束时的存活玩家名单，便于回溯局势
