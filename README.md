@@ -48,18 +48,31 @@
 
 ## 快速开始
 
+<<<<<<< HEAD
 ### 1. 安装
+=======
+### 环境要求
+>>>>>>> feature/add-frontend-vue
 
-推荐使用 [uv](https://github.com/astral-sh/uv) 快速管理环境：
+- Node.js >= 18.0.0
+- Python 3.8+
+- [uv](https://github.com/astral-sh/uv)（Python 包管理器）
+
+### 1) 安装
 
 ```bash
 git clone https://github.com/KeLuoJun/WolfMind.git
 cd WolfMind
 
-# 使用 uv 同步环境（自动创建虚拟环境并安装依赖）
-uv sync
+# 一键安装前后端依赖
+npm run setup:all
+
+# 或分别安装
+npm run setup          # 安装前端依赖
+npm run setup:backend  # 安装后端依赖
 ```
 
+<<<<<<< HEAD
 ### 2. 配置
 
 首先，根据模板创建配置文件：
@@ -74,6 +87,45 @@ cp backend/.env.example backend/.env
 编辑 `backend/.env`，根据需要配置模型提供商与 API Key：
 
 #### 基础配置（必填）
+=======
+### 2) 配置
+
+```bash
+copy .env.example .env
+```
+
+编辑 `.env`，至少配置 `MODEL_PROVIDER` 与对应的 API Key。
+
+### 3) 运行
+
+```bash
+# 一键启动前后端开发服务器
+npm run dev
+
+# 或分别启动
+npm run backend   # 启动后端 (http://localhost:8000)
+npm run frontend  # 启动前端 (http://localhost:5173)
+```
+
+### 4) 构建
+
+```bash
+npm run build  # 构建前端生产版本
+```
+
+### 仅运行后端（CLI / 无前端）
+
+```bash
+uv run python backend/main.py
+```
+运行后，在data/game_logs中查看实时的游戏信息。
+
+---
+
+## 配置
+
+### 基础配置（必填）
+>>>>>>> feature/add-frontend-vue
 
 ```bash
 # dashscope / openai / ollama
@@ -151,11 +203,15 @@ WolfMind/
 │   ├── game_logs/
 │   ├── experiences/
 │   └── analysis_reports/
-├── frontend/                 # Web 控制台与日志查看
+├── frontend/                 # React 前端 (Vite + Tailwind)
+│   ├── src/
+│   │   ├── components/       # UI 组件
+│   │   ├── hooks/            # 自定义 Hooks
+│   │   ├── services/         # WebSocket 服务
+│   │   ├── styles/           # 全局样式
+│   │   └── main.jsx          # 入口
 │   ├── index.html
-│   ├── script.js
-│   ├── styles.css
-│   └── server.py
+│   └── package.json
 └── README.md
 ```
 

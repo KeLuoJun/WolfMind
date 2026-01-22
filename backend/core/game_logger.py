@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """游戏日志记录模块"""
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable, Any
 
 from config import config
 
@@ -10,7 +12,12 @@ from config import config
 class GameLogger:
     """狼人杀游戏日志记录器"""
 
-    def __init__(self, game_id: str, log_dir: Optional[str] = None):
+    def __init__(
+        self,
+        game_id: str,
+        log_dir: Optional[str] = None,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
+    ):
         """初始化日志记录器
 
         Args:
@@ -23,13 +30,31 @@ class GameLogger:
         self.log_file = resolved_dir / f"game_{game_id}.log"
         self.current_round = 0
         self.start_time = datetime.now()
-        self.closed = False  # Initialize closed status
+        self.closed = False  # 是否已关闭（避免重复 close）
+        self._event_sink = event_sink
 
         # 确保日志目录存在
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # 初始化日志文件
         self._init_log_file()
+
+    def _now_ms(self) -> int:
+        return int(datetime.now().timestamp() * 1000)
+
+    def _emit(self, event: dict[str, Any]) -> None:
+        if not self._event_sink:
+            return
+        try:
+            # 补充通用字段，便于前端统一展示/排序
+            event.setdefault("gameId", self.game_id)
+            event.setdefault("round", self.current_round)
+            event.setdefault("timestamp", self._now_ms())
+            event.setdefault("ts", event.get("timestamp"))
+            self._event_sink(event)
+        except Exception:
+            # 任何推送异常都不应影响核心游戏流程/日志写入
+            return
 
     def _init_log_file(self):
         """初始化日志文件头部信息"""
@@ -58,6 +83,22 @@ class GameLogger:
                 f.write(f"  - {name}{model_label}: {role}\n")
             f.write("\n" + "=" * 80 + "\n")
 
+        # 同步推送一条系统事件给前端（用于初始化 UI）
+        self._emit(
+            {
+                "type": "system",
+                "content": "玩家列表已初始化",
+                "players": [
+                    {
+                        "name": name,
+                        "role": role,
+                        "model": (model_map.get(name) if model_map else None),
+                    }
+                    for name, role in players_info
+                ],
+            }
+        )
+
     def start_round(self, round_num: int):
         """开始新回合
 
@@ -69,15 +110,27 @@ class GameLogger:
             f.write(f"\n第 {round_num} 回合\n")
             f.write("-" * 80 + "\n")
 
+        self._emit(
+            {
+                "type": "round_start",
+                "round": round_num,
+                "content": f"第 {round_num} 回合",
+            }
+        )
+
     def start_night(self):
         """开始夜晚阶段"""
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write("\n【夜晚阶段】\n\n")
 
+        self._emit({"type": "night_start", "content": "夜晚阶段开始"})
+
     def start_day(self):
         """开始白天阶段"""
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write("\n【白天阶段】\n\n")
+
+        self._emit({"type": "day_start", "content": "白天阶段开始"})
 
     CATEGORY_MAP = {
         "狼人讨论": "🐺 狼人频道",
@@ -130,6 +183,30 @@ class GameLogger:
 
             f.write("\n")  # 增加空行以分隔条目
 
+        # 将结构化条目推送给前端
+        content_lines: list[str] = []
+        if thought:
+            content_lines.append(f"(心声) {thought}")
+        if behavior:
+            content_lines.append(f"(表现) {behavior}")
+        if speech:
+            content_lines.append(f"(发言) {speech}")
+        content = "\n".join(content_lines) if content_lines else ""
+
+        self._emit(
+            {
+                "type": "agent_message",
+                "category": category,
+                "categoryDisplay": cat_display,
+                "agentName": player_name,
+                "action": action,
+                "thought": thought or "",
+                "behavior": behavior or "",
+                "speech": speech or "",
+                "content": content or (speech or ""),
+            }
+        )
+
     def _write_field(self, file_obj, label: str, content: Optional[str]):
         """按字段写入文本，自动对齐多行内容。"""
         if not content:
@@ -163,6 +240,8 @@ class GameLogger:
             action=action
         )
 
+        # log_message_detail 已经会推送结构化事件
+
     def log_vote_result(self, result: str, votes_detail: str, vote_type: str = "投票结果", action: str = "被选中击杀"):
         """记录投票结果"""
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -174,6 +253,15 @@ class GameLogger:
                 f"[{timestamp}] {cat_display} {result} {action} ({votes_detail})\n")
             f.write("-" * 80 + "\n\n")
 
+        self._emit(
+            {
+                "type": "system",
+                "category": vote_type,
+                "categoryDisplay": cat_display,
+                "content": f"{cat_display} {result} {action} ({votes_detail})",
+            }
+        )
+
     def log_action(self, action_type: str, content: str):
         """记录特殊行动（简略版，用于纯动作记录）"""
         # 如果需要详细版，应使用 log_message_detail 并传入 action
@@ -181,6 +269,15 @@ class GameLogger:
         cat_display = self._get_category_display(action_type)
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"[{timestamp}] {cat_display} {content}\n\n")
+
+        self._emit(
+            {
+                "type": "system",
+                "category": action_type,
+                "categoryDisplay": cat_display,
+                "content": f"{cat_display} {content}",
+            }
+        )
 
     def log_death(self, phase: str, players: list[str]):
         """记录死亡信息"""
@@ -193,12 +290,31 @@ class GameLogger:
             else:
                 f.write(f"[{timestamp}] {cat_display} 无\n\n")
 
+        self._emit(
+            {
+                "type": "system",
+                "category": phase,
+                "categoryDisplay": cat_display,
+                "content": f"{cat_display} {', '.join(players) if players else '无'}",
+                "players": players,
+            }
+        )
+
     def log_announcement(self, content: str):
         """记录公告信息"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         cat_display = self._get_category_display("公告")
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(f"[{timestamp}] {cat_display}\n    {content}\n\n")
+
+        self._emit(
+            {
+                "type": "system",
+                "category": "公告",
+                "categoryDisplay": cat_display,
+                "content": content,
+            }
+        )
 
     def log_alive_players(self, round_num: int, alive_players: list[str]):
         """记录当前存活玩家列表，通常在每回合结束时调用。"""
@@ -208,6 +324,15 @@ class GameLogger:
             f.write(
                 f"[{timestamp}] 📋 存活玩家(第{round_num}回合结束): {alive_text}\n\n"
             )
+
+        self._emit(
+            {
+                "type": "system",
+                "category": "存活玩家",
+                "content": f"存活玩家(第{round_num}回合结束): {alive_text}",
+                "alivePlayers": alive_players,
+            }
+        )
 
     def log_last_words(self, player_name: str, content: str):
         """记录遗言"""
@@ -235,6 +360,14 @@ class GameLogger:
             self._write_field(f, "印象", impression_text)
             f.write("\n")
 
+        self._emit(
+            {
+                "type": "memory",
+                "agentName": player_name,
+                "content": f"(思考) {thought}\n\n(印象)\n{impression_text}",
+            }
+        )
+
     def close(self, status: str = "正常结束"):
         """关闭日志文件并写入最终状态。"""
         if self.closed:
@@ -246,3 +379,5 @@ class GameLogger:
                 f"游戏结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"游戏状态: {status}\n")
             f.write("=" * 80 + "\n")
+
+        self._emit({"type": "system", "content": f"游戏结束: {status}"})

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Guard">
+  <rect x="12" y="12" width="104" height="104" rx="28" fill="#111827"/>
+  <path d="M64 26 C78 36 90 40 96 42 V68 C96 90 80 102 64 110 C48 102 32 90 32 68 V42 C38 40 50 36 64 26 Z" fill="#f8fafc" opacity="0.92"/>
+  <path d="M64 44 V92" stroke="#111827" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+  <path d="M50 58 H78" stroke="#111827" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+</svg>

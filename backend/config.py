@@ -9,7 +9,6 @@ class Config:
 
     def __init__(self):
         """初始化配置，从 .env 文件加载"""
-        # 将路径锚定到仓库根目录，避免在 backend 下产生散落文件
         self.backend_dir = Path(__file__).resolve().parent
         self.root_dir = self.backend_dir.parent
         self._env: dict[str, str] = {}
@@ -17,7 +16,7 @@ class Config:
 
     def _load_env(self):
         """加载 .env 文件"""
-        env_path = self.backend_dir / ".env"
+        env_path = self.root_dir / ".env"
         if env_path.exists():
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:

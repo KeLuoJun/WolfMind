@@ -7,15 +7,26 @@ from agentscope.agent import ReActAgent
 from agentscope.message import Msg
 
 from prompts.role_prompts import RolePrompts
-from models.schemas import (
-    BaseDecision,
-    DiscussionModel,
-    get_vote_model,
-    get_poison_model,
-    WitchResurrectModel,
-    get_seer_model,
-    get_hunter_model,
-)
+try:
+    from .schemas import (  # type: ignore
+        BaseDecision,
+        DiscussionModel,
+        get_vote_model,
+        get_poison_model,
+        WitchResurrectModel,
+        get_seer_model,
+        get_hunter_model,
+    )
+except Exception:  # noqa: BLE001
+    from models.schemas import (
+        BaseDecision,
+        DiscussionModel,
+        get_vote_model,
+        get_poison_model,
+        WitchResurrectModel,
+        get_seer_model,
+        get_hunter_model,
+    )
 
 
 class BaseRole(ABC):
