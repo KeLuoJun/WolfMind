@@ -113,8 +113,10 @@
           :class="sceneMode === 'day' ? 'is-day' : 'is-night'"
           :style="{
             position: 'relative',
-            width: Math.round(SCENE_NATIVE.width * scale),
-            height: Math.round(SCENE_NATIVE.height * scale),
+            width: Math.round((SCENE_NATIVE?.width || 1248) * scale) + 'px',
+            height: Math.round((SCENE_NATIVE?.height || 832) * scale) + 'px',
+            margin: '0 auto',
+            backgroundColor: sceneMode === 'day' ? '#87ceeb' : '#0a0a1f'
           }"
         >
           <div class="room-background-layer">
@@ -361,7 +363,11 @@
 
       <template v-if="selectedAgent">
         <div class="agent-card-overlay" @click="handleClose" />
-        <AgentCard :agent="selectedAgent" :is-closing="isClosing" />
+        <div class="agent-card-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1001; pointer-events: none;">
+          <div style="pointer-events: auto; position: relative; width: 100%; height: 100%;">
+            <AgentCard :agent="selectedAgent" :is-closing="isClosing" />
+          </div>
+        </div>
       </template>
 
       <div
@@ -534,8 +540,12 @@ const updateScale = () => {
   const { clientWidth, clientHeight } = container;
   if (clientWidth <= 0 || clientHeight <= 0) return;
 
-  const scaleX = clientWidth / SCENE_NATIVE.width;
-  const scaleY = clientHeight / SCENE_NATIVE.height;
+  // Ensure SCENE_NATIVE has values, fallback to 1248x832 if missing
+  const nativeW = SCENE_NATIVE?.width || 1248;
+  const nativeH = SCENE_NATIVE?.height || 832;
+
+  const scaleX = clientWidth / nativeW;
+  const scaleY = clientHeight / nativeH;
 
   const maxScale = 1.55;
   const fitScale = Math.min(scaleX, scaleY);
@@ -602,6 +612,7 @@ const getAgentRank = (agentId) => {
 };
 
 const handleAgentClick = (agentId) => {
+  console.log('Agent clicked:', agentId);
   if (closeTimerRef.value) {
     clearTimeout(closeTimerRef.value);
     closeTimerRef.value = null;
@@ -609,8 +620,10 @@ const handleAgentClick = (agentId) => {
   isClosing.value = false;
 
   const agentData = getAgentData(agentId);
+  console.log('Agent data:', agentData);
   if (agentData) {
     selectedAgent.value = agentData;
+    console.log('Selected agent set:', selectedAgent.value);
   }
 };
 
@@ -807,8 +820,11 @@ const getBubbleForAgent = (agentId) => {
 };
 
 const agentSeats = computed(() => {
-  const scaledWidth = SCENE_NATIVE.width * scale.value;
-  const scaledHeight = SCENE_NATIVE.height * scale.value;
+  const nativeW = SCENE_NATIVE?.width || 1248;
+  const nativeH = SCENE_NATIVE?.height || 832;
+  
+  const scaledWidth = nativeW * scale.value;
+  const scaledHeight = nativeH * scale.value;
 
   return agents.value.map((agent, idx) => {
     const seatIdx = seatIndexForAgent(agent, idx);

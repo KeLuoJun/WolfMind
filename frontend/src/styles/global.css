@@ -1294,6 +1294,7 @@ body {
   overflow: hidden;
   padding: 6px;
   position: relative;
+  min-height: 400px;
 }
 
 .room-scene {
@@ -1301,6 +1302,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 300px;
 }
 
 .room-canvas {
