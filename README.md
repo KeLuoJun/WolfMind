@@ -8,6 +8,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![AgentScope](https://img.shields.io/badge/AgentScope-0.1.0+-green.svg)](https://github.com/modelscope/agentscope)
+[![Vue3](https://img.shields.io/badge/Vue-3-4FC08D.svg)](https://vuejs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [功能特性](#功能特性) • [快速开始](#快速开始) • [项目结构](#项目结构) • [对局日志与分析](#对局日志与分析) • [游戏规则](#游戏规则) 
