@@ -287,7 +287,7 @@ async def _reflection_phase(
 
     async def _run_reflection_task(role_obj: Any) -> dict[str, Any]:
         _check_stop_local()
-        await asyncio.sleep(0.4)  # 控制并行调用节奏
+        await asyncio.sleep(0.6)  # 控制并行调用节奏
         context = _format_impression_context(
             role_obj.name,
             players,
@@ -875,7 +875,7 @@ async def werewolves_game(
 
             async def _vote_task(role_obj: Any) -> tuple[Any, Msg | None]:
                 _check_stop()
-                await asyncio.sleep(0.4)  # 控制并行调用节奏
+                await asyncio.sleep(0.6)  # 控制并行调用节奏
                 context = _format_impression_context(
                     role_obj.name,
                     players,
@@ -1012,7 +1012,7 @@ async def werewolves_game(
                 ]
 
                 async def _pk_vote_task(role_obj: Any) -> tuple[Any, Msg | None]:
-                    await asyncio.sleep(0.4)  # 控制并行调用节奏
+                    await asyncio.sleep(0.6)  # 控制并行调用节奏
                     context = _format_impression_context(
                         role_obj.name,
                         players,
