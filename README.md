@@ -48,11 +48,7 @@
 
 ## 快速开始
 
-<<<<<<< HEAD
-### 1. 安装
-=======
 ### 环境要求
->>>>>>> feature/add-frontend-vue
 
 - Node.js >= 18.0.0
 - Python 3.8+
@@ -72,26 +68,13 @@ npm run setup          # 安装前端依赖
 npm run setup:backend  # 安装后端依赖
 ```
 
-<<<<<<< HEAD
-### 2. 配置
-
-首先，根据模板创建配置文件：
-
-```bash
-# Windows
-copy backend\.env.example backend\.env
-# Linux / macOS
-cp backend/.env.example backend/.env
-```
-
-编辑 `backend/.env`，根据需要配置模型提供商与 API Key：
-
-#### 基础配置（必填）
-=======
 ### 2) 配置
 
 ```bash
+# Windows
 copy .env.example .env
+# Linux / macOS
+cp .env.example .env
 ```
 
 编辑 `.env`，至少配置 `MODEL_PROVIDER` 与对应的 API Key。
@@ -107,7 +90,7 @@ npm run backend   # 启动后端 (http://localhost:8000)
 npm run frontend  # 启动前端 (http://localhost:5173)
 ```
 
-### 4) 构建
+### 4) 构建前端
 
 ```bash
 npm run build  # 构建前端生产版本
@@ -118,14 +101,13 @@ npm run build  # 构建前端生产版本
 ```bash
 uv run python backend/main.py
 ```
-运行后，在data/game_logs中查看实时的游戏信息。
+运行后，在 data/game_logs 中查看实时的游戏信息。
 
 ---
 
 ## 配置
 
 ### 基础配置（必填）
->>>>>>> feature/add-frontend-vue
 
 ```bash
 # dashscope / openai / ollama
@@ -153,31 +135,11 @@ AUTO_ANALYZE=false
 - `single`（默认）：9 位玩家共用全局 OpenAI 配置
 - `per-player`：需要同时填写 `OPENAI_API_KEY_P1..P9`、`OPENAI_BASE_URL_P1..P9`、`OPENAI_MODEL_NAME_P1..P9`
 
-### 3. 运行
-
-#### 方式 A：Web 控制台（推荐）
-
-```bash
-# 使用 uv 运行前端服务器
-uv run python frontend/server.py
-```
-
-打开浏览器访问：[http://localhost:8080](http://localhost:8080)。
-
-> **提示**：启动后也可以在页面上直接配置模型信息，点击“启动游戏”即可实时查看日志。
-
-#### 方式 B：CLI 命令行
-
-```bash
-uv run python backend/main.py
-```
-
----
-
 ## 项目结构
 
 ```
 WolfMind/
+├── .env.example              # 环境变量模板
 ├── backend/                  # 后端核心
 │   ├── main.py               # 入口：启动一局完整对局
 │   ├── config.py             # 配置加载/校验/脱敏打印
@@ -197,19 +159,18 @@ WolfMind/
 │   │   ├── pipeline.py
 │   │   ├── agents.py
 │   │   └── log_parser.py
-│   ├── .env.example
 │   └── requirements.txt
 ├── data/                     # 运行期数据（对局日志/经验/分析报告）
 │   ├── game_logs/
 │   ├── experiences/
 │   └── analysis_reports/
-├── frontend/                 # React 前端 (Vite + Tailwind)
+├── frontend/                 # Vue 前端 (Vite + Tailwind)
 │   ├── src/
 │   │   ├── components/       # UI 组件
 │   │   ├── hooks/            # 自定义 Hooks
 │   │   ├── services/         # WebSocket 服务
 │   │   ├── styles/           # 全局样式
-│   │   └── main.jsx          # 入口
+│   │   └── main.js           # 入口
 │   ├── index.html
 │   └── package.json
 └── README.md
@@ -277,6 +238,8 @@ uv run python -m backend.analysis \
 - **大语言模型**：DashScope / OpenAI / Ollama
 - **环境管理**：[uv](https://github.com/astral-sh/uv)
 - **编程语言**：Python 3.8+
+- **后端框架**：FastAPI
+- **前端框架**：Vue 3 + Vite + Tailwind CSS
 - **数据验证**：Pydantic
 - **异步编程**：asyncio
 
