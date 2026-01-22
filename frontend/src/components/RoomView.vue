@@ -231,7 +231,7 @@
                 :class="entry.isLeftSide ? 'room-bubble--left' : 'room-bubble--right'"
                 :style="{
                   position: 'absolute',
-                  bottom: 0,
+                  [entry.isTopSide ? 'top' : 'bottom']: '0',
                   left: entry.isLeftSide ? '50px' : 'auto',
                   right: entry.isLeftSide ? 'auto' : '50px',
                 }"
@@ -259,7 +259,7 @@
                 <div
                   :style="{
                     position: 'absolute',
-                    bottom: '20px',
+                    [entry.isTopSide ? 'top' : 'bottom']: '20px',
                     [entry.isLeftSide ? 'left' : 'right']: '-25px',
                     width: '25px',
                     height: '3px',
@@ -270,7 +270,7 @@
                 <div
                   :style="{
                     position: 'absolute',
-                    bottom: '16px',
+                    [entry.isTopSide ? 'top' : 'bottom']: '16px',
                     [entry.isLeftSide ? 'left' : 'right']: '-32px',
                     width: '10px',
                     height: '10px',
@@ -825,6 +825,7 @@ const agentBubbles = computed(() => {
       const left = Math.round(pos.x * scaledWidth);
       const top = Math.round(scaledHeight - pos.y * scaledHeight);
       const isLeftSide = pos.x < 0.5;
+      const isTopSide = pos.y > 0.5;
       const agentData = getAgentData(agent.id);
       const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
 
@@ -835,6 +836,7 @@ const agentBubbles = computed(() => {
         left,
         top,
         isLeftSide,
+        isTopSide,
         modelInfo,
       };
     })
