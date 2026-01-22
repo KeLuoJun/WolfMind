@@ -2,9 +2,9 @@
 
 <div align="center">
 
-基于 LLM + AgentScope 的 9 人狼人杀对局与游戏分析系统
+基于 LLM + AgentScope 的 9 人狼人杀AI游戏
 
-![狼人杀 AI 游戏](./static/werewolf_ai_game.png)
+![前端界面预览](./static/frontend.png)
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![AgentScope](https://img.shields.io/badge/AgentScope-0.1.0+-green.svg)](https://github.com/modelscope/agentscope)
