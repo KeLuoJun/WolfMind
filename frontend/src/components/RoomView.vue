@@ -317,7 +317,9 @@
       <template v-if="selectedAgent">
         <div ref="agentCardWrapper" class="agent-card-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1001; pointer-events: none;">
           <div style="pointer-events: auto; position: relative; width: 100%; height: 100%;">
-            <AgentCard :agent="selectedAgent" :is-closing="isClosing" />
+            <div ref="cardContainerRef">
+              <AgentCard :agent="selectedAgent" :is-closing="isClosing" />
+            </div>
           </div>
         </div>
       </template>
@@ -442,11 +444,12 @@ const isClosing = ref(false);
 const hoverTimerRef = ref(null);
 const closeTimerRef = ref(null);
 const agentCardWrapper = ref(null);
+const cardContainerRef = ref(null);
 
 const handleClickOutside = (e) => {
-  if (selectedAgent.value && !isClosing.value && agentCardWrapper.value) {
-    // If click target is not inside the card wrapper (meaning we clicked underneath/outside)
-    if (!agentCardWrapper.value.contains(e.target)) {
+  if (selectedAgent.value && !isClosing.value) {
+    // Check if the click is outside the card container
+    if (cardContainerRef.value && !cardContainerRef.value.contains(e.target)) {
       handleClose();
     }
   }
@@ -522,7 +525,7 @@ onMounted(() => {
     resizeObserver.observe(containerRef.value);
   }
   window.addEventListener("resize", updateScale);
-  window.addEventListener("mousedown", handleClickOutside);
+  window.addEventListener("mousedown", handleClickOutside, true);
 });
 
 const speakingAgents = computed(() => {
@@ -879,6 +882,6 @@ onBeforeUnmount(() => {
     resizeObserver = null;
   }
   window.removeEventListener("resize", updateScale);
-  window.removeEventListener("mousedown", handleClickOutside);
+  window.removeEventListener("mousedown", handleClickOutside, true);
 });
 </script>
