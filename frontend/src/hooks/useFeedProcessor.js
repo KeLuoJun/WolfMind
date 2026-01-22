@@ -1,15 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { ref, watch } from "vue";
 
 const MAX_FEED_ITEMS = 200;
 
-/**
- * Generate a unique ID for feed items
- */
 const generateId = (prefix = "item") => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-/**
- * Convert raw event to a message object (for use within conferences or standalone)
- */
 const eventToMessage = (evt, getAgentById) => {
   if (!evt || !evt.type) {
     return null;
@@ -20,12 +14,11 @@ const eventToMessage = (evt, getAgentById) => {
 
   switch (evt.type) {
   case "agent_message":
-  case "conference_message":
-    {
-      const thought = evt.thought || "";
-      const behavior = evt.behavior || "";
-      const speech = evt.speech || "";
-      const content = evt.content || speech || "";
+  case "conference_message": {
+    const thought = evt.thought || "";
+    const behavior = evt.behavior || "";
+    const speech = evt.speech || "";
+    const content = evt.content || speech || "";
 
     return {
       id: generateId("msg"),
@@ -40,7 +33,7 @@ const eventToMessage = (evt, getAgentById) => {
       category: evt.category,
       action: evt.action,
     };
-    }
+  }
 
   case "memory":
     return {
@@ -49,7 +42,7 @@ const eventToMessage = (evt, getAgentById) => {
       agentId: evt.agentId,
       agent: agent?.name || evt.agentId || "Memory",
       role: "Memory",
-      content: evt.content || evt.text || ""
+      content: evt.content || evt.text || "",
     };
 
   case "system":
@@ -63,7 +56,7 @@ const eventToMessage = (evt, getAgentById) => {
       timestamp,
       agent: "System",
       role: "System",
-      content: evt.content || `${evt.type}: ${evt.date || ""}`
+      content: evt.content || `${evt.type}: ${evt.date || ""}`,
     };
 
   default:
@@ -71,9 +64,6 @@ const eventToMessage = (evt, getAgentById) => {
   }
 };
 
-/**
- * Convert raw event to a standalone feed item (non-conference)
- */
 const eventToFeedItem = (evt, getAgentById) => {
   if (!evt || !evt.type) {
     return null;
@@ -92,49 +82,39 @@ const eventToFeedItem = (evt, getAgentById) => {
         timestamp: message.timestamp,
         agentId: message.agentId,
         agent: message.agent,
-        content: message.content
-      }
+        content: message.content,
+      },
     };
   }
 
   return {
     type: "message",
     id: message.id,
-    data: message
+    data: message,
   };
 };
 
-/**
- * Custom hook for processing feed events with conference aggregation
- */
 export function useFeedProcessor({ getAgentById } = {}) {
-  const [feed, setFeed] = useState([]);
+  const feed = ref([]);
 
-  const getAgentByIdRef = useRef(getAgentById);
-  useEffect(() => {
-    getAgentByIdRef.current = getAgentById;
-  }, [getAgentById]);
+  const getAgentByIdRef = ref(getAgentById);
+  watch(
+    () => getAgentById,
+    (val) => {
+      getAgentByIdRef.value = val;
+    }
+  );
 
-  // Active conference ref for real-time event handling
-  const activeConferenceRef = useRef(null);
+  const activeConferenceRef = ref(null);
 
-  /**
-   * Process historical events from server
-   * Events come in reverse chronological order (newest first)
-   * So conference_end appears BEFORE conference_start in the array
-   */
-  const processHistoricalFeed = useCallback((events) => {
+  const processHistoricalFeed = (events) => {
     if (!Array.isArray(events)) {
       console.warn("processHistoricalFeed: expected array, got", typeof events);
       return;
     }
 
-    console.log("📋 Processing historical events:", events.length);
-
     const feedItems = [];
     let currentConference = null;
-
-    // Process in chronological order (reverse the array)
     const chronological = [...events].reverse();
 
     for (const evt of chronological) {
@@ -144,7 +124,6 @@ export function useFeedProcessor({ getAgentById } = {}) {
 
       try {
         if (evt.type === "conference_start") {
-          // Start a new conference
           currentConference = {
             id: evt.conferenceId || generateId("conf"),
             title: evt.title || "Team Conference",
@@ -152,39 +131,34 @@ export function useFeedProcessor({ getAgentById } = {}) {
             endTime: null,
             isLive: false,
             participants: evt.participants || [],
-            messages: []
+            messages: [],
           };
         } else if (evt.type === "conference_end") {
-          // End current conference
           if (currentConference) {
             currentConference.endTime = evt.timestamp || evt.ts || Date.now();
             currentConference.isLive = false;
             feedItems.push({
               type: "conference",
               id: currentConference.id,
-              data: currentConference
+              data: currentConference,
             });
             currentConference = null;
           }
         } else if (evt.type === "conference_message") {
-          // Add to current conference if exists
-          const message = eventToMessage(evt, getAgentByIdRef.current);
+          const message = eventToMessage(evt, getAgentByIdRef.value);
           if (message && currentConference) {
             currentConference.messages.push(message);
           } else if (message) {
-            // Fallback: show as standalone message if no active conference
             feedItems.push({
               type: "message",
               id: message.id,
-              data: message
+              data: message,
             });
           }
         } else {
-          // Non-conference events
-          const feedItem = eventToFeedItem(evt, getAgentByIdRef.current);
+          const feedItem = eventToFeedItem(evt, getAgentByIdRef.value);
           if (feedItem) {
             if (currentConference) {
-              // Add to conference messages
               currentConference.messages.push(feedItem.data);
             } else {
               feedItems.push(feedItem);
@@ -196,34 +170,24 @@ export function useFeedProcessor({ getAgentById } = {}) {
       }
     }
 
-    // If there's an unclosed conference, it's still live
     if (currentConference) {
       currentConference.isLive = true;
       feedItems.push({
         type: "conference",
         id: currentConference.id,
-        data: currentConference
+        data: currentConference,
       });
-      // Store as active for real-time updates
-      activeConferenceRef.current = currentConference;
-      console.log(`🔴 Restored active conference: ${currentConference.id} with ${currentConference.messages.length} messages`);
+      activeConferenceRef.value = currentConference;
     }
 
-    // Reverse back to newest-first order
-    setFeed(feedItems.reverse());
-    console.log(`✅ Processed ${feedItems.length} feed items from ${events.length} events`);
-  }, []);
+    feed.value = feedItems.reverse();
+  };
 
-  /**
-   * Process a single real-time event
-   * Handles conference aggregation for live events
-   */
-  const processFeedEvent = useCallback((evt) => {
+  const processFeedEvent = (evt) => {
     if (!evt || !evt.type) {
       return null;
     }
 
-    // Handle conference start
     if (evt.type === "conference_start") {
       const conference = {
         id: evt.conferenceId || generateId("conf"),
@@ -232,64 +196,55 @@ export function useFeedProcessor({ getAgentById } = {}) {
         endTime: null,
         isLive: true,
         participants: evt.participants || [],
-        messages: []
+        messages: [],
       };
-      activeConferenceRef.current = conference;
-      setFeed(prev => [{ type: "conference", id: conference.id, data: conference }, ...prev].slice(0, MAX_FEED_ITEMS));
+      activeConferenceRef.value = conference;
+      feed.value = [{ type: "conference", id: conference.id, data: conference }, ...feed.value].slice(0, MAX_FEED_ITEMS);
       return conference;
     }
 
-    // Handle conference end
     if (evt.type === "conference_end") {
-      const activeConf = activeConferenceRef.current;
-      activeConferenceRef.current = null;
+      const activeConf = activeConferenceRef.value;
+      activeConferenceRef.value = null;
 
       if (activeConf) {
         const ended = {
           ...activeConf,
           endTime: evt.timestamp || evt.ts || Date.now(),
-          isLive: false
+          isLive: false,
         };
-        setFeed(prev => prev.map(item =>
-          item.type === "conference" && item.id === activeConf.id
-            ? { ...item, data: ended }
-            : item
-        ));
+        feed.value = feed.value.map((item) =>
+          item.type === "conference" && item.id === activeConf.id ? { ...item, data: ended } : item
+        );
         return ended;
       }
       return null;
     }
 
-    // Handle conference message
     if (evt.type === "conference_message") {
-      const message = eventToMessage(evt, getAgentByIdRef.current);
+      const message = eventToMessage(evt, getAgentByIdRef.value);
       if (!message) {
         return null;
       }
 
-      const activeConf = activeConferenceRef.current;
+      const activeConf = activeConferenceRef.value;
       if (activeConf) {
-        // Add to active conference
         const updated = {
           ...activeConf,
-          messages: [...activeConf.messages, message]
+          messages: [...activeConf.messages, message],
         };
-        activeConferenceRef.current = updated;
-        setFeed(prev => prev.map(item =>
-          item.type === "conference" && item.id === activeConf.id
-            ? { ...item, data: updated }
-            : item
-        ));
+        activeConferenceRef.value = updated;
+        feed.value = feed.value.map((item) =>
+          item.type === "conference" && item.id === activeConf.id ? { ...item, data: updated } : item
+        );
         return message;
-      } else {
-        // No active conference, show as standalone
-        const feedItem = { type: "message", id: message.id, data: message };
-        setFeed(prev => [feedItem, ...prev].slice(0, MAX_FEED_ITEMS));
-        return feedItem;
       }
+
+      const feedItem = { type: "message", id: message.id, data: message };
+      feed.value = [feedItem, ...feed.value].slice(0, MAX_FEED_ITEMS);
+      return feedItem;
     }
 
-    // Handle other feed events (agent_message, memory, system, etc.)
     const feedEventTypes = [
       "agent_message",
       "memory",
@@ -298,93 +253,56 @@ export function useFeedProcessor({ getAgentById } = {}) {
       "night_start",
       "round_start",
       "day_complete",
-      "day_error"
+      "day_error",
     ];
     if (!feedEventTypes.includes(evt.type)) {
       return null;
     }
 
-    const feedItem = eventToFeedItem(evt, getAgentByIdRef.current);
+    const feedItem = eventToFeedItem(evt, getAgentByIdRef.value);
     if (!feedItem) {
       return null;
     }
 
-    const activeConf = activeConferenceRef.current;
+    const activeConf = activeConferenceRef.value;
     if (activeConf) {
-      // Add to active conference
       const updated = {
         ...activeConf,
-        messages: [...activeConf.messages, feedItem.data]
+        messages: [...activeConf.messages, feedItem.data],
       };
-      activeConferenceRef.current = updated;
-      setFeed(prev => prev.map(item =>
-        item.type === "conference" && item.id === activeConf.id
-          ? { ...item, data: updated }
-          : item
-      ));
+      activeConferenceRef.value = updated;
+      feed.value = feed.value.map((item) =>
+        item.type === "conference" && item.id === activeConf.id ? { ...item, data: updated } : item
+      );
       return feedItem.data;
-    } else {
-      // No active conference, add as standalone
-      setFeed(prev => [feedItem, ...prev].slice(0, MAX_FEED_ITEMS));
-      return feedItem;
     }
-  }, []);
 
-  /**
-   * Add a system message to the feed
-   */
-  const addSystemMessage = useCallback((content) => {
+    feed.value = [feedItem, ...feed.value].slice(0, MAX_FEED_ITEMS);
+    return feedItem;
+  };
+
+  const addSystemMessage = (content) => {
     const message = {
       id: generateId("sys"),
       timestamp: Date.now(),
       agent: "System",
       role: "System",
-      content
+      content: content || "",
     };
 
-    const activeConf = activeConferenceRef.current;
-    if (activeConf) {
-      const updated = {
-        ...activeConf,
-        messages: [...activeConf.messages, message]
-      };
-      activeConferenceRef.current = updated;
-      setFeed(prev => prev.map(item =>
-        item.type === "conference" && item.id === activeConf.id
-          ? { ...item, data: updated }
-          : item
-      ));
-    } else {
-      const feedItem = { type: "message", id: message.id, data: message };
-      setFeed(prev => [feedItem, ...prev].slice(0, MAX_FEED_ITEMS));
-    }
-    return message;
-  }, []);
+    const feedItem = {
+      type: "message",
+      id: message.id,
+      data: message,
+    };
 
-  /**
-   * Clear all feed items and reset active conference
-   */
-  const clearFeed = useCallback(() => {
-    setFeed([]);
-    activeConferenceRef.current = null;
-  }, []);
-
-  /**
-   * Check if there's an active conference
-   */
-  const hasActiveConference = useCallback(() => {
-    return activeConferenceRef.current !== null;
-  }, []);
+    feed.value = [feedItem, ...feed.value].slice(0, MAX_FEED_ITEMS);
+  };
 
   return {
     feed,
-    setFeed,
     processHistoricalFeed,
     processFeedEvent,
     addSystemMessage,
-    clearFeed,
-    hasActiveConference
   };
 }
-
-export default useFeedProcessor;
