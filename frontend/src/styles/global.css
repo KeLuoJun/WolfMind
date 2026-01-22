@@ -461,14 +461,14 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
   background: #ffffff;
   flex-wrap: wrap;
   position: relative;
   z-index: 1000;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .agent-indicator {
@@ -675,22 +675,22 @@ body {
 .is-day .sky-gradient {
   background: linear-gradient(
     180deg,
-    #4a90d9 0%,
-    #87ceeb 25%,
-    #b0e2ff 50%,
-    #e0f0ff 75%,
-    #fff5e6 100%
+    #2563eb 0%,
+    #3b82f6 25%,
+    #60a5fa 50%,
+    #93c5fd 75%,
+    #e0f2fe 100%
   );
 }
 
 .is-night .sky-gradient {
   background: linear-gradient(
     180deg,
-    #0a0a1f 0%,
-    #1a1a3a 20%,
-    #1e2a4a 40%,
-    #162035 60%,
-    #0d1525 100%
+    #020617 0%,
+    #0f172a 25%,
+    #1e1b4b 50%,
+    #312e81 80%,
+    #4338ca 100%
   );
 }
 
@@ -2541,4 +2541,162 @@ body {
     padding: 8px 12px;
     gap: 16px;
   }
+}
+
+/* ========== 场景玩家节点样式 (Room Agent Node) ========== */
+
+.room-agent-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px; /* 增加间距 */
+  user-select: none;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.room-agent-node:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  z-index: 20;
+}
+
+.room-agent-node:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+.room-agent-node.is-dead {
+  opacity: 0.8;
+  filter: grayscale(100%);
+}
+
+.room-agent-avatar-container {
+  position: relative;
+  width: 64px; /* 稍微加大头像 */
+  height: 64px;
+}
+
+/* 头像图片 */
+.room-agent-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid #ffffff; /* 纯白边框 */
+  background: rgba(255, 255, 255, 0.15); /* 微亮底色 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* 深度阴影 */
+  transition: all 0.3s ease;
+  object-fit: cover;
+}
+
+/* 说话时效�?*/
+.room-agent-node.is-speaking .room-agent-avatar {
+  border-color: #4ade80; /* 绿色边框 */
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.3), 0 0 20px rgba(74, 222, 128, 0.5); /* 双重发光 */
+  animation: speakingPulse 1.5s infinite;
+}
+
+@keyframes speakingPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+/* 死亡标记 */
+.room-agent-dead-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* 名字标签 */
+.room-agent-name-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  border-radius: 12px; /* 圆角标签 */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.room-agent-node:hover .room-agent-name-tag {
+  background: #ffffff;
+  transform: translateY(2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.room-agent-node.is-dead .room-agent-name-tag {
+  background: #e5e5e5;
+  color: #6b7280;
+  border-color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.room-agent-node.is-speaking .room-agent-name-tag {
+  background: #4ade80;
+  color: #ffffff;
+  border-color: #22c55e;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Replay Button refinement */
+.replay-button-container {
+  position: absolute;
+  bottom: 80px; /* Position above controls */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+}
+
+.replay-button {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.replay-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.replay-icon {
+  font-size: 12px;
+  color: #fbbf24;
 }

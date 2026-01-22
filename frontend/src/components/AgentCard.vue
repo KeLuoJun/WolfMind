@@ -3,40 +3,55 @@
     v-if="agent"
     :style="{
       position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      background: '#ffffff',
-      borderBottom: '2px solid #000000',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+      top: '16px',
+      left: '16px',
+      right: '16px',
+      background: 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(12px)',
+      borderRadius: '16px',
+      border: '1px solid rgba(255,255,255,0.5)',
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
       zIndex: 1000,
       animation: isClosing ? 'slideUp 0.2s ease-out forwards' : 'slideDown 0.25s ease-out',
     }"
   >
-    <div style="padding: 12px; display: flex; gap: 12px; align-items: center;">
+    <div style="padding: 16px; display: flex; gap: 16px; align-items: center;">
       <img
         v-if="agent.avatar"
         :src="agent.avatar"
         :alt="displayName"
-        style="width: 52px; height: 52px; object-fit: contain;"
+        style="width: 56px; height: 56px; object-fit: contain; border-radius: 12px; background: #f3f4f6;"
       />
-      <div style="min-width: 220px;">
-        <div style="font-size: 16px; font-weight: 800; color: #000000;">{{ displayName }}</div>
-        <div style="font-size: 12px; font-weight: 800; color: #111827;">身份：{{ role }}</div>
-        <div style="font-size: 12px; color: #374151;">{{ alignmentLabel }}</div>
+      <div style="min-width: 200px;">
+        <div style="font-size: 18px; font-weight: 700; color: #111827; letter-spacing: -0.025em; line-height: 1.2;">{{ displayName }}</div>
+        <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
+             <span style="font-size: 12px; font-weight: 600; color: #4b5563; background: #f3f4f6; padding: 2px 8px; border-radius: 6px;">{{ role }}</span>
+             <span style="font-size: 12px; color: #6b7280;">{{ alignmentLabel }}</span>
+        </div>
       </div>
       <div
         :style="{
           marginLeft: 'auto',
-          padding: '6px 10px',
-          border: '2px solid #000000',
-          background: '#fafafa',
+          padding: '6px 12px',
+          borderRadius: '9999px',
+          background: alive ? '#dcfce7' : '#fee2e2',
+          border: alive ? '1px solid #bbf7d0' : '1px solid #fecaca',
           fontSize: '12px',
-          fontWeight: 800,
-          color: alive ? '#16a34a' : '#ef4444',
+          fontWeight: 600,
+          color: alive ? '#15803d' : '#b91c1c',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
         }"
       >
-        {{ alive ? '存活' : '出局' }}
+        <span :style="{
+            display: 'block',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: alive ? '#16a34a' : '#ef4444'
+        }"></span>
+        {{ alive ? 'Active' : 'Eliminated' }}
       </div>
     </div>
   </div>

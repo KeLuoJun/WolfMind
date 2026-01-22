@@ -187,77 +187,30 @@
 
           <template v-for="entry in agentSeats" :key="entry.agent.id">
             <div
+              class="room-agent-node"
+              :class="{
+                'is-dead': entry.agent.alive === false,
+                'is-speaking': speakingAgents[entry.agent.id]
+              }"
               :style="{
-                position: 'absolute',
                 left: entry.left + 'px',
                 top: entry.top + 'px',
-                transform: 'translate(-50%, -50%)',
-                zIndex: 15,
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-                userSelect: 'none',
-                opacity: entry.agent.alive === false ? 0.7 : 1,
               }"
               @click="handleAgentClick(entry.agent.id)"
               @mouseenter="handleAgentMouseEnter(entry.agent.id)"
               @mouseleave="handleAgentMouseLeave"
             >
-              <div style="position: relative;">
+              <div class="room-agent-avatar-container">
                 <img
                   :src="entry.agent.avatar"
                   :alt="entry.agent.name"
-                  :style="{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '999px',
-                    border: entry.agent.alive === false ? '2px solid #666666' : '2px solid #000000',
-                    background: 'rgba(255, 255, 255, 0.10)',
-                    boxShadow: speakingAgents[entry.agent.id]
-                      ? '0 0 0 4px rgba(97, 92, 237, 0.35)'
-                      : '0 4px 10px rgba(0, 0, 0, 0.10)',
-                    filter: entry.agent.alive === false ? 'grayscale(100%) brightness(0.7)' : 'none',
-                  }"
+                  class="room-agent-avatar"
                 />
-                <div
-                  v-if="entry.agent.alive === false"
-                  :style="{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    background: '#ef4444',
-                    border: '2px solid #ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    color: '#ffffff',
-                    fontWeight: 'bold',
-                  }"
-                >
+                <div v-if="entry.agent.alive === false" class="room-agent-dead-badge">
                   ✕
                 </div>
               </div>
-              <div
-                :style="{
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  background: entry.agent.alive === false ? '#e5e5e5' : '#ffffff',
-                  border: entry.agent.alive === false ? '2px solid #888888' : '2px solid #000000',
-                  color: entry.agent.alive === false ? '#666666' : '#000000',
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                  boxShadow: '2px 2px 0 0 rgba(0,0,0,0.1)'
-                }"
-              >
+              <div class="room-agent-name-tag">
                 {{ entry.agent.name }}
               </div>
             </div>
@@ -362,8 +315,7 @@
       </div>
 
       <template v-if="selectedAgent">
-        <div class="agent-card-overlay" @click="handleClose" />
-        <div class="agent-card-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1001; pointer-events: none;">
+        <div ref="agentCardWrapper" class="agent-card-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1001; pointer-events: none;">
           <div style="pointer-events: auto; position: relative; width: 100%; height: 100%;">
             <AgentCard :agent="selectedAgent" :is-closing="isClosing" />
           </div>
@@ -489,6 +441,16 @@ const insightsCacheRef = ref({ at: 0, data: null });
 const isClosing = ref(false);
 const hoverTimerRef = ref(null);
 const closeTimerRef = ref(null);
+const agentCardWrapper = ref(null);
+
+const handleClickOutside = (e) => {
+  if (selectedAgent.value && !isClosing.value && agentCardWrapper.value) {
+    // If click target is not inside the card wrapper (meaning we clicked underneath/outside)
+    if (!agentCardWrapper.value.contains(e.target)) {
+      handleClose();
+    }
+  }
+};
 
 const fetchPlayersInsights = async () => {
   const now = Date.now();
@@ -560,6 +522,7 @@ onMounted(() => {
     resizeObserver.observe(containerRef.value);
   }
   window.addEventListener("resize", updateScale);
+  window.addEventListener("mousedown", handleClickOutside);
 });
 
 const speakingAgents = computed(() => {
@@ -916,5 +879,6 @@ onBeforeUnmount(() => {
     resizeObserver = null;
   }
   window.removeEventListener("resize", updateScale);
+  window.removeEventListener("mousedown", handleClickOutside);
 });
 </script>
