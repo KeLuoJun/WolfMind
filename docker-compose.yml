@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+      - ./static:/app/static
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    environment:
+      VITE_WS_URL: ws://localhost:8000/ws/game
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
