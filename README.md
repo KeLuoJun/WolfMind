@@ -92,6 +92,19 @@ npm run backend   # 启动后端 (http://localhost:8000)
 npm run frontend  # 启动前端 (http://localhost:5173)
 ```
 
+### Docker 启动
+
+```bash
+# 1. 配置环境变量（同源码部署）
+cp .env.example .env
+
+# 2. 拉取镜像并启动
+docker compose up -d
+```
+
+- 前端：http://localhost:5173
+- 后端：http://localhost:8000
+
 ### 4) 构建前端
 
 ```bash
