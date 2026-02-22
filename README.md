@@ -265,6 +265,4 @@ uv run python -m backend.analysis \
 
 **如果这个项目对你有帮助，请给个 ⭐️ Star 支持一下！**
 
-Made with ❤️ by the Werewolf AI Team
-
 </div>
