@@ -136,7 +136,8 @@ export const getAgentColors = (agentId, agentName) => {
 };
 
 // UI timing constants
-export const BUBBLE_LIFETIME_MS = 10000;
+export const BUBBLE_LIFETIME_MS = 6000;
+export const TYPING_LIFETIME_MS = 30000;
 export const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 export const AXIS_TICKS = 5;
 

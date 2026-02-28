@@ -207,6 +207,18 @@ class GameLogger:
             }
         )
 
+    def log_agent_typing(self, player_name: str, category: str):
+        """推送玩家正在思考/发言的状态。"""
+        self._emit(
+            {
+                "type": "agent_typing",
+                "agentId": player_name,
+                "agentName": player_name,
+                "category": category,
+                "categoryDisplay": self._get_category_display(category),
+            }
+        )
+
     def _write_field(self, file_obj, label: str, content: Optional[str]):
         """按字段写入文本，自动对齐多行内容。"""
         if not content:

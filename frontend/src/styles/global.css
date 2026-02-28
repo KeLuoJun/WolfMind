@@ -1440,6 +1440,62 @@ body {
   padding-right: 4px;
 }
 
+/* Typing Indicator Animation */
+.typing-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  align-items: flex-start;
+}
+
+.typing-category {
+  font-size: 10px;
+  font-weight: 800;
+  color: #615CED;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(97, 92, 237, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 12px;
+}
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  background-color: #615CED;
+  border-radius: 50%;
+  display: inline-block;
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing-bounce {
+  0%, 80%, 100% { 
+    transform: scale(0.6);
+    opacity: 0.4;
+  } 
+  40% { 
+    transform: scale(1.1);
+    opacity: 1;
+    box-shadow: 0 0 4px rgba(97, 92, 237, 0.4);
+  }
+}
+
 /* ???????? */
 .room-bubble-content::-webkit-scrollbar {
   width: 6px;

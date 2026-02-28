@@ -234,16 +234,16 @@ async def _process_last_words(
             vote_history,
             round_public_records,
             round_num,
-            "遗言",
+            "发言",
         )
 
+        logger.log_agent_typing(name, "发表遗言")
         last_msg = await role_obj.leave_last_words(
             _attach_context(prompt_msg, context),
         )
-
         speech, behavior, thought, content_raw = _extract_msg_fields(last_msg)
         logger.log_message_detail(
-            "遗言",
+            "发言",
             name,
             speech=speech or content_raw,
             behavior=behavior,
@@ -297,6 +297,7 @@ async def _reflection_phase(
             "回合反思",
         )
 
+        logger.log_agent_typing(role_obj.name, "回合反思")
         prompt = await moderator_agent(
             f"[{role_obj.name} ONLY] 本轮结束，请反思并更新你对其他存活玩家的印象。"
             "只填写需要更新的玩家，未提及的保持不变。思考过程 thought 仅自己可见。"
@@ -490,6 +491,8 @@ async def werewolves_game(
                             round_num,
                             "夜晚讨论",
                         )
+
+                        logger.log_agent_typing(werewolf.name, "夜晚讨论")
                         res = await werewolf.discuss_with_team(
                             _attach_context(
                                 await moderator(
@@ -545,6 +548,7 @@ async def werewolves_game(
                         round_num,
                         "夜晚投票",
                     )
+                    logger.log_agent_typing(werewolf.name, "夜晚投票")
                     msg = await werewolf.team_vote(
                         _attach_context(vote_prompt, context),
                         players.current_alive,
@@ -631,6 +635,7 @@ async def werewolves_game(
                     ),
                 }
 
+                logger.log_agent_typing(witch.name, "女巫行动")
                 result = await witch.night_action(game_state)
 
                 # 记录女巫“解药”阶段的结构化输出
@@ -693,6 +698,7 @@ async def werewolves_game(
                     ),
                 }
 
+                logger.log_agent_typing(seer.name, "预言家行动")
                 result = await seer.night_action(game_state)
 
                 # 记录预言家行动的结构化输出（心声/表现/发言）
@@ -734,6 +740,7 @@ async def werewolves_game(
                         round_num,
                         "猎人开枪",
                     )
+                    logger.log_agent_typing(hunter.name, "猎人开枪")
                     shoot_res = await hunter.shoot(
                         alive_for_hunter,
                         moderator,
@@ -837,6 +844,7 @@ async def werewolves_game(
                     round_num,
                     "白天讨论",
                 )
+                logger.log_agent_typing(role.name, "白天讨论")
                 msg = await role.day_discussion(
                     _attach_context(await moderator(""), context),
                 )
@@ -884,6 +892,7 @@ async def werewolves_game(
                     round_num,
                     "白天投票",
                 )
+                logger.log_agent_typing(role_obj.name, "投票思考中")
                 msg = await role_obj.vote(
                     _attach_context(vote_prompt, context),
                     players.current_alive,
@@ -970,6 +979,7 @@ async def werewolves_game(
                         round_num,
                         f"PK发言#{pk_round}",
                     )
+                    logger.log_agent_typing(candidate_name, f"PK发言#{pk_round}")
                     msg = await role_obj.day_discussion(
                         _attach_context(await moderator(""), context),
                     )
@@ -1187,6 +1197,7 @@ async def werewolves_game(
                         round_num,
                         "猎人开枪",
                     )
+                    logger.log_agent_typing(hunter.name, "猎人开枪")
                     shoot_res = await hunter.shoot(
                         players.current_alive,
                         moderator,

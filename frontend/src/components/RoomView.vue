@@ -306,7 +306,19 @@
                 <div class="room-bubble-divider"></div>
 
                 <div class="room-bubble-content">
-                  {{ entry.bubble.text }}
+                  <template v-if="entry.bubble.isTyping">
+                    <div class="typing-indicator">
+                      <span v-if="entry.bubble.categoryDisplay" class="typing-category">{{ entry.bubble.categoryDisplay }}</span>
+                      <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ entry.bubble.text }}
+                  </template>
                 </div>
               </div>
             </div>

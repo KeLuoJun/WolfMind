@@ -44,7 +44,7 @@ import Header from "./components/Header.vue";
 import RoomView from "./components/RoomView.vue";
 import GameFeed from "./components/GameFeed.vue";
 
-import { DEFAULT_AGENTS, API_URL, BUBBLE_LIFETIME_MS, ASSETS } from "./config/constants";
+import { DEFAULT_AGENTS, API_URL, BUBBLE_LIFETIME_MS, TYPING_LIFETIME_MS, ASSETS } from "./config/constants";
 import { ReadOnlyClient } from "./services/websocket";
 import { useFeedProcessor } from "./hooks/useFeedProcessor";
 
@@ -314,7 +314,43 @@ const upsertBubbleFromMessage = (messageOrFeedItem) => {
     delete next[msg.agentId];
     bubbles.value = next;
     delete timers[msg.agentId];
-  }, BUBBLE_LIFETIME_MS || 3000);
+  }, BUBBLE_LIFETIME_MS);
+};
+
+const handleAgentTyping = (evt) => {
+  if (!evt || !evt.agentId) return;
+
+  const agent = agents.value.find((a) => a.id === evt.agentId);
+  const bubble = {
+    agentId: evt.agentId,
+    agentName: evt.agentName || agent?.name,
+    text: "",
+    isTyping: true,
+    category: evt.category,
+    categoryDisplay: evt.categoryDisplay,
+    timestamp: evt.timestamp || Date.now(),
+    ts: evt.timestamp || Date.now(),
+  };
+
+  bubbles.value = {
+    ...bubbles.value,
+    [evt.agentId]: bubble,
+  };
+
+  const timers = bubbleTimersRef.value;
+  if (timers[evt.agentId]) {
+    clearTimeout(timers[evt.agentId]);
+  }
+  // Typing indication should have a longer timeout to prevent premature disappearance if LLM is slow
+  timers[evt.agentId] = setTimeout(() => {
+    const currentBubble = bubbles.value[evt.agentId];
+    if (currentBubble && currentBubble.isTyping) {
+      const next = { ...bubbles.value };
+      delete next[evt.agentId];
+      bubbles.value = next;
+    }
+    delete timers[evt.agentId];
+  }, TYPING_LIFETIME_MS);
 };
 
 const startGame = async () => {
@@ -452,6 +488,9 @@ onMounted(() => {
     processFeedEvent(evt);
     if (evt.type === "agent_message" || evt.type === "conference_message") {
       upsertBubbleFromMessage(evt);
+    }
+    if (evt.type === "agent_typing") {
+      handleAgentTyping(evt);
     }
   };
 
