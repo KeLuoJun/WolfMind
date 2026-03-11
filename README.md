@@ -1,4 +1,4 @@
-# WolfMind：多智能体狼人杀（AgentScope）
+# WolfMind：多Agent狼人杀
 
 <div align="center">
 
