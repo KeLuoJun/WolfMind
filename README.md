@@ -196,41 +196,41 @@ WolfMind/
 ```mermaid
 flowchart TB
   subgraph U[用户入口]
-    CLI[命令行\nbackend/main.py]
-    UI[Web 控制台\nfrontend/src/App.vue]
+    CLI[命令行<br/>backend/main.py]
+    UI[Web 控制台<br/>frontend/src/App.vue]
   end
 
   subgraph FE[前端展示层]
     MAIN[main.js]
-    COMP[components/\nHeader RoomView GameFeed]
+    COMP[components/<br/>Header RoomView GameFeed]
     HOOK[hooks/useFeedProcessor.js]
-    WS[services/websocket.js\nReadOnlyClient]
+    WS[services/websocket.js<br/>ReadOnlyClient]
     CFGFE[config/constants.js]
   end
 
   subgraph API[服务控制层]
-    FASTAPI[backend/api_server.py\nFastAPI + EventBus + WS]
-    SERVICE[backend/game_service.py\nrun_game_session]
-    CFG[backend/config.py\n统一配置中心]
+    FASTAPI[backend/api_server.py<br/>FastAPI + EventBus + WS]
+    SERVICE[backend/game_service.py<br/>run_game_session]
+    CFG[backend/config.py<br/>统一配置中心]
   end
 
   subgraph GAME[游戏核心层]
-    ENTRY[main.py\nget_official_agents]
-    ENGINE[core/game_engine.py\nwerewolves_game]
-    ROLES[models/roles.py\nWerewolf Seer Witch Hunter Villager]
-    SCHEMAS[models/schemas.py\n结构化输出模型]
-    PROMPTS[prompts/\ngame_prompts + role_prompts]
-    LOGGER[core/game_logger.py\n对局日志]
-    MEMORY[core/knowledge_base.py\n玩家经验库]
-    UTILS[core/utils.py\n投票/玩家集合/主持人辅助]
+    ENTRY[main.py<br/>get_official_agents]
+    ENGINE[core/game_engine.py<br/>werewolves_game]
+    ROLES[models/roles.py<br/>Werewolf Seer Witch Hunter Villager]
+    SCHEMAS[models/schemas.py<br/>结构化输出模型]
+    PROMPTS[prompts/<br/>game_prompts + role_prompts]
+    LOGGER[core/game_logger.py<br/>对局日志]
+    MEMORY[core/knowledge_base.py<br/>玩家经验库]
+    UTILS[core/utils.py<br/>投票/玩家集合/主持人辅助]
   end
 
   subgraph ANA[分析流水线]
-    ANALYSIS[analysis/pipeline.py\nrun_analysis]
-    PARSER[analysis/log_parser.py\n日志解析]
-    AGENTS[analysis/agents.py\n心理/网络分析 Agent]
-    REPORT[analysis/report_template.py\nHTML 报告生成]
-    ASCHEMA[analysis/schemas.py\n报告 Schema]
+    ANALYSIS[analysis/pipeline.py<br/>run_analysis]
+    PARSER[analysis/log_parser.py<br/>日志解析]
+    AGENTS[analysis/agents.py<br/>心理/网络分析 Agent]
+    REPORT[analysis/report_template.py<br/>HTML 报告生成]
+    ASCHEMA[analysis/schemas.py<br/>报告 Schema]
   end
 
   subgraph DATA[运行数据]
