@@ -191,6 +191,93 @@ WolfMind/
 └── README.md
 ```
 
+### 代码结构图
+
+```mermaid
+flowchart TB
+  subgraph U[用户入口]
+    CLI[命令行\nbackend/main.py]
+    UI[Web 控制台\nfrontend/src/App.vue]
+  end
+
+  subgraph FE[前端展示层]
+    MAIN[main.js]
+    COMP[components/\nHeader RoomView GameFeed]
+    HOOK[hooks/useFeedProcessor.js]
+    WS[services/websocket.js\nReadOnlyClient]
+    CFGFE[config/constants.js]
+  end
+
+  subgraph API[服务控制层]
+    FASTAPI[backend/api_server.py\nFastAPI + EventBus + WS]
+    SERVICE[backend/game_service.py\nrun_game_session]
+    CFG[backend/config.py\n统一配置中心]
+  end
+
+  subgraph GAME[游戏核心层]
+    ENTRY[main.py\nget_official_agents]
+    ENGINE[core/game_engine.py\nwerewolves_game]
+    ROLES[models/roles.py\nWerewolf Seer Witch Hunter Villager]
+    SCHEMAS[models/schemas.py\n结构化输出模型]
+    PROMPTS[prompts/\ngame_prompts + role_prompts]
+    LOGGER[core/game_logger.py\n对局日志]
+    MEMORY[core/knowledge_base.py\n玩家经验库]
+    UTILS[core/utils.py\n投票/玩家集合/主持人辅助]
+  end
+
+  subgraph ANA[分析流水线]
+    ANALYSIS[analysis/pipeline.py\nrun_analysis]
+    PARSER[analysis/log_parser.py\n日志解析]
+    AGENTS[analysis/agents.py\n心理/网络分析 Agent]
+    REPORT[analysis/report_template.py\nHTML 报告生成]
+    ASCHEMA[analysis/schemas.py\n报告 Schema]
+  end
+
+  subgraph DATA[运行数据]
+    LOGS[data/game_logs/*.log]
+    EXP[data/experiences/*.json]
+    HTML[data/analysis_reports/*.html]
+  end
+
+  CLI --> ENTRY
+  UI --> MAIN
+  MAIN --> COMP
+  MAIN --> HOOK
+  MAIN --> WS
+  MAIN --> CFGFE
+  WS <-- WebSocket --> FASTAPI
+  COMP -->|启动/停止/导出| FASTAPI
+
+  FASTAPI --> SERVICE
+  FASTAPI --> CFG
+  SERVICE --> ENTRY
+  SERVICE --> ENGINE
+  SERVICE --> MEMORY
+  ENTRY --> CFG
+  ENTRY --> ENGINE
+  ENTRY -. AUTO_ANALYZE .-> ANALYSIS
+
+  ENGINE --> ROLES
+  ENGINE --> SCHEMAS
+  ENGINE --> PROMPTS
+  ENGINE --> LOGGER
+  ENGINE --> MEMORY
+  ENGINE --> UTILS
+  ROLES --> SCHEMAS
+  ROLES --> PROMPTS
+
+  LOGGER --> LOGS
+  MEMORY --> EXP
+
+  ANALYSIS --> PARSER
+  ANALYSIS --> AGENTS
+  ANALYSIS --> REPORT
+  ANALYSIS --> ASCHEMA
+  PARSER --> LOGS
+  ANALYSIS --> EXP
+  REPORT --> HTML
+```
+
 ---
 
 ## 对局日志与分析
